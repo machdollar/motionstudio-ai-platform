@@ -7,7 +7,6 @@
   let toastTimer;
   let currentScript = "";
   let currentImageUrl = "";
-  
 const API_BASE_URL = "https://motionstudio-ai-backend.onrender.com";
 
 async function generateWithAI(task, prompt, platform = "YouTube", tone = "engaging") {
@@ -31,8 +30,6 @@ async function generateWithAI(task, prompt, platform = "YouTube", tone = "engagi
 
   return data.result;
 }
-  
-
   function toast(message) {
     const node = $("#toast");
     node.textContent = message;
