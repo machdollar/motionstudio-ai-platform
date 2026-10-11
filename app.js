@@ -738,3 +738,16 @@
   }
 
 })();
+// MotionStudio AI backend connection test
+(async function testMotionStudioBackend() {
+  const API_BASE_URL = "https://motionstudio-ai-backend.onrender.com";
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/health`);
+    const data = await response.json();
+
+    console.log("MotionStudio AI backend:", data);
+  } catch (error) {
+    console.error("MotionStudio AI backend connection failed:", error);
+  }
+})();
