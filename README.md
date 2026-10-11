@@ -67,3 +67,9 @@ This remains a static front-end application. Project records are local to the cu
 - Assets can include project names, comma-separated tags, notes, and safe HTTP(S) links.
 - Small local files (up to 2 MB) can be saved in browser storage; larger media should be linked from trusted storage.
 - Export the library as JSON for backup. This is browser-local and does not sync across devices.
+
+
+## Version 6 — Brand Kit
+- Added a Brand Kit page for brand name, tagline, website/logo link, colors, font, target audience, voice, key message, and content guidelines.
+- Added live color/identity preview, copyable brand brief, and JSON export.
+- Brand Kit data is stored in this browser only; it does not sync across devices or automatically connect to external AI services.

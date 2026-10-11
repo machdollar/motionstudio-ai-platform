@@ -41,3 +41,16 @@
 .asset-url { display:block; margin-top:8px; overflow-wrap:anywhere; font-size:.82rem; }
 @media (max-width: 1050px) { .asset-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width: 650px) { .asset-grid { grid-template-columns:1fr; } .asset-toolbar { flex-direction:column; } .asset-filters { width:100%; min-width:0; } }
+
+/* Version 6 — Brand Kit */
+.color-field { display:flex; align-items:center; gap:9px; }
+.color-field input[type="color"] { width:48px; height:42px; padding:3px; border-radius:9px; cursor:pointer; flex:0 0 48px; }
+.color-field input[type="text"] { min-width:0; flex:1; }
+.brand-preview { display:flex; align-items:stretch; min-height:165px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel-2); }
+.brand-swatch { width:42px; min-height:165px; flex:0 0 42px; }
+.brand-preview-copy { padding:22px 24px; min-width:0; }
+.brand-preview-copy h2 { margin:4px 0 6px; overflow-wrap:anywhere; }
+.brand-preview-copy p { margin:0 0 10px; color:var(--muted); }
+.brand-preview-copy span { color:var(--muted); font-size:.85rem; }
+.brand-preview-panel { margin-top:18px; }
+@media(max-width:650px) { .brand-preview-copy { padding:16px; } .brand-swatch { width:25px; flex-basis:25px; } }

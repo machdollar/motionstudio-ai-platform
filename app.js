@@ -3,7 +3,7 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const STORAGE_KEYS = { prompts: "motionstudio.prompts.v1", settings: "motionstudio.settings.v1", calendar: "motionstudio.calendar.v1", projects: "motionstudio.projects.v1" };
-  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", projects:"Project Dashboard", calendar:"Content Calendar", library:"Prompt Library", settings:"Studio settings" };
+  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", projects:"Project Dashboard", calendar:"Content Calendar", assets:"Media Asset Library", brand:"Brand Kit", library:"Prompt Library", settings:"Studio settings" };
   let toastTimer;
   let currentScript = "";
   let currentImageUrl = "";
@@ -603,6 +603,69 @@
       toast("Media library exported.");
     });
     renderAssets();
+  }
+
+  // Brand Kit — saved in this browser, with JSON export and a reusable text brief.
+  const BRAND_KEY = "motionstudio.brand.v1";
+  const brandFields = ["Name","Tagline","Logo","Font","Primary","Accent","Audience","Voice","Message","Guidelines"];
+  function readBrandForm() {
+    return {
+      name:$("#brandName").value.trim(), tagline:$("#brandTagline").value.trim(),
+      logo:safeUrl($("#brandLogo").value.trim()), font:$("#brandFont").value.trim(),
+      primary:validHex($("#brandPrimaryText").value, "#7048e8"),
+      accent:validHex($("#brandAccentText").value, "#16b8d4"),
+      audience:$("#brandAudience").value.trim(), voice:$("#brandVoice").value.trim(),
+      message:$("#brandMessage").value.trim(), guidelines:$("#brandGuidelines").value.trim(),
+      updatedAt:new Date().toISOString()
+    };
+  }
+  function validHex(value, fallback) { return /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback; }
+  function updateBrandPreview(data) {
+    $("#brandSwatchPrimary").style.background = data.primary || "#7048e8";
+    $("#brandSwatchAccent").style.background = data.accent || "#16b8d4";
+    $("#brandPreviewName").textContent = data.name || "Your brand name";
+    $("#brandPreviewTagline").textContent = data.tagline || "Your tagline will appear here.";
+    $("#brandPreviewFont").textContent = "Font: " + (data.font || "not set");
+  }
+  function fillBrandForm(data) {
+    const mapping = {name:"brandName",tagline:"brandTagline",logo:"brandLogo",font:"brandFont",primary:"brandPrimaryText",accent:"brandAccentText",audience:"brandAudience",voice:"brandVoice",message:"brandMessage",guidelines:"brandGuidelines"};
+    Object.entries(mapping).forEach(([key,id]) => { if (data[key] != null) $("#"+id).value = data[key]; });
+    $("#brandPrimary").value = validHex(data.primary, "#7048e8");
+    $("#brandAccent").value = validHex(data.accent, "#16b8d4");
+    updateBrandPreview(data);
+  }
+  const brandForm = $("#brandForm");
+  if (brandForm) {
+    let savedBrand = {};
+    try { savedBrand = JSON.parse(localStorage.getItem(BRAND_KEY) || "{}") || {}; } catch {}
+    fillBrandForm(savedBrand);
+    [["brandPrimary","brandPrimaryText"],["brandAccent","brandAccentText"]].forEach(([picker,text]) => {
+      $("#"+picker).addEventListener("input", () => { $("#"+text).value = $("#"+picker).value; updateBrandPreview(readBrandForm()); });
+      $("#"+text).addEventListener("input", () => {
+        if (/^#[0-9a-fA-F]{6}$/.test($("#"+text).value)) { $("#"+picker).value = $("#"+text).value; updateBrandPreview(readBrandForm()); }
+      });
+    });
+    brandForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const data = readBrandForm();
+      try {
+        localStorage.setItem(BRAND_KEY, JSON.stringify(data));
+        savedBrand = data; fillBrandForm(data); toast("Brand Kit saved on this device.");
+      } catch { toast("Could not save. Browser storage may be unavailable."); }
+    });
+    brandForm.addEventListener("reset", () => {
+      setTimeout(() => { fillBrandForm({primary:"#7048e8",accent:"#16b8d4"}); }, 0);
+    });
+    $("#brandExport").addEventListener("click", () => {
+      const data = JSON.parse(localStorage.getItem(BRAND_KEY) || "{}");
+      downloadText("motionstudio-brand-kit.json", JSON.stringify({schemaVersion:1,exportedAt:new Date().toISOString(),brand:data},null,2), "application/json;charset=utf-8");
+      toast("Brand Kit exported.");
+    });
+    $("#brandCopy").addEventListener("click", () => {
+      const data = JSON.parse(localStorage.getItem(BRAND_KEY) || "{}");
+      const brief = `BRAND BRIEF\nName: ${data.name || ""}\nTagline: ${data.tagline || ""}\nWebsite/logo: ${data.logo || ""}\nPrimary color: ${data.primary || ""}\nAccent color: ${data.accent || ""}\nFont: ${data.font || ""}\nAudience: ${data.audience || ""}\nBrand voice: ${data.voice || ""}\nKey message: ${data.message || ""}\nGuidelines: ${data.guidelines || ""}`;
+      copyText(brief);
+    });
   }
 
 })();

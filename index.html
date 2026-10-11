@@ -28,6 +28,7 @@
         <button class="nav-item" data-view="projects"><span class="nav-icon">▤</span> Project Dashboard</button>
         <button class="nav-item" data-view="calendar"><span class="nav-icon">▦</span> Content Calendar</button>
         <button class="nav-item" data-view="assets"><span class="nav-icon">▧</span> Media Asset Library</button>
+        <button class="nav-item" data-view="brand"><span class="nav-icon">✦</span> Brand Kit</button>
         <button class="nav-item" data-view="library"><span class="nav-icon">◇</span> Prompt Library</button>
       </nav>
       <div class="sidebar-bottom">
@@ -280,6 +281,30 @@
     <div class="panel-heading asset-toolbar"><div><h2>Your assets</h2><p class="muted">Search, filter, open, edit, or remove saved entries.</p></div><div class="asset-filters"><input id="assetSearch" type="search" placeholder="Search assets..." aria-label="Search assets"><select id="assetFilter" aria-label="Filter assets"><option value="all">All types</option><option value="image">Images</option><option value="video">Videos</option><option value="audio">Audio</option><option value="thumbnail">Thumbnails</option><option value="document">Documents</option><option value="other">Other</option></select></div></div>
     <div id="assetGrid" class="asset-grid"><div class="empty-state"><h3>Your library is empty</h3><p>Add your first asset using the form above.</p></div></div>
   </div>
+</section>
+
+<section class="view" id="view-brand">
+  <div class="page-heading">
+    <div><p class="eyebrow">BRAND WORKSPACE</p><h1>Brand Kit</h1><p class="muted">Keep your brand identity in one place and reuse it when planning content.</p></div>
+    <div class="heading-actions"><button class="button button-secondary" id="brandExport">Export brand kit</button><button class="button button-secondary" id="brandCopy">Copy brand brief</button></div>
+  </div>
+  <div class="panel">
+    <div class="panel-heading"><div><h2>Your brand identity</h2><p class="muted">These details are saved locally in this browser.</p></div></div>
+    <form id="brandForm" class="form-grid">
+      <label>Brand / creator name<input id="brandName" maxlength="100" placeholder="e.g. MotionStudio Creator" required></label>
+      <label>Tagline<input id="brandTagline" maxlength="180" placeholder="A short line that captures your brand"></label>
+      <label>Website or logo URL<input id="brandLogo" type="url" placeholder="https://example.com/logo.png"></label>
+      <label>Primary font<input id="brandFont" maxlength="80" placeholder="e.g. DM Sans"></label>
+      <label>Primary color<div class="color-field"><input id="brandPrimary" type="color" value="#7048e8"><input id="brandPrimaryText" maxlength="7" value="#7048e8" aria-label="Primary color hex"></div></label>
+      <label>Accent color<div class="color-field"><input id="brandAccent" type="color" value="#16b8d4"><input id="brandAccentText" maxlength="7" value="#16b8d4" aria-label="Accent color hex"></div></label>
+      <label>Target audience<input id="brandAudience" maxlength="220" placeholder="Who is your content for?"></label>
+      <label>Brand voice<input id="brandVoice" maxlength="180" placeholder="e.g. Friendly, confident, practical"></label>
+      <label class="field-wide">Key message<textarea id="brandMessage" rows="3" maxlength="1000" placeholder="What should people remember about your brand?"></textarea></label>
+      <label class="field-wide">Style and content guidelines<textarea id="brandGuidelines" rows="4" maxlength="1500" placeholder="Words to use or avoid, visual direction, tone, accessibility notes..."></textarea></label>
+      <div class="field-wide form-actions"><button class="button button-primary" type="submit">Save Brand Kit</button><button class="button button-secondary" type="reset">Clear form</button></div>
+    </form>
+  </div>
+  <div class="panel brand-preview-panel"><div class="panel-heading"><div><h2>Brand preview</h2><p class="muted">A quick look at your saved colors and identity.</p></div></div><div id="brandPreview" class="brand-preview"><div class="brand-swatch" id="brandSwatchPrimary"></div><div class="brand-swatch" id="brandSwatchAccent"></div><div class="brand-preview-copy"><p class="eyebrow">BRAND PREVIEW</p><h2 id="brandPreviewName">Your brand name</h2><p id="brandPreviewTagline">Your tagline will appear here.</p><span id="brandPreviewFont">Font: not set</span></div></div></div>
 </section>
 
 <section class="view" id="view-settings">
