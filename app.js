@@ -2,8 +2,8 @@
   "use strict";
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-  const STORAGE_KEYS = { prompts: "motionstudio.prompts.v1", settings: "motionstudio.settings.v1" };
-  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", library:"Prompt Library", settings:"Studio settings" };
+  const STORAGE_KEYS = { prompts: "motionstudio.prompts.v1", settings: "motionstudio.settings.v1", calendar: "motionstudio.calendar.v1" };
+  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", calendar:"Content Calendar", library:"Prompt Library", settings:"Studio settings" };
   let toastTimer;
   let currentScript = "";
   let currentImageUrl = "";
@@ -392,6 +392,47 @@
     $("#settingsMessage").textContent = "Local data cleared.";
     toast("Local data cleared.");
   });
+
+
+  // Content Calendar: local-first scheduling and exports.
+  const calendarDate = $("#calendarDate");
+  if (calendarDate) {
+    const today = new Date();
+    calendarDate.value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+    function loadCalendar() {
+      try { const value = JSON.parse(localStorage.getItem(STORAGE_KEYS.calendar) || "[]"); return Array.isArray(value) ? value : []; }
+      catch { return []; }
+    }
+    function saveCalendar(items) { localStorage.setItem(STORAGE_KEYS.calendar, JSON.stringify(items)); renderCalendar(); }
+    function renderCalendar() {
+      const all = loadCalendar().sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+      const status = $("#calendarFilter").value;
+      const query = $("#calendarSearch").value.trim().toLowerCase();
+      const visible = all.filter(item => (status === "All" || item.status === status) && `${item.title} ${item.platform} ${item.caption} ${item.format}`.toLowerCase().includes(query));
+      const published = all.filter(item => item.status === "Published").length;
+      const ready = all.filter(item => item.status === "Ready").length;
+      const upcoming = all.filter(item => item.status !== "Published" && item.date >= todayString()).length;
+      $("#calendarSummary").innerHTML = `<div class="calendar-stat"><span>Planned posts</span><strong>${all.length}</strong></div><div class="calendar-stat"><span>Upcoming</span><strong>${upcoming}</strong></div><div class="calendar-stat"><span>Ready to publish</span><strong>${ready}</strong></div><div class="calendar-stat"><span>Published</span><strong>${published}</strong></div>`;
+      $("#calendarCount").textContent = `${all.length} ${all.length === 1 ? "POST" : "POSTS"}`;
+      $("#calendarEmpty").classList.toggle("hidden", visible.length > 0);
+      $("#calendarPosts").innerHTML = visible.map(item => `<article class="calendar-post"><div class="calendar-post-date"><strong>${escapeHTML(new Date(`${item.date}T12:00:00`).toLocaleDateString(undefined,{day:"2-digit"}))}</strong><span>${escapeHTML(new Date(`${item.date}T12:00:00`).toLocaleDateString(undefined,{month:"short"}))}</span></div><div class="calendar-post-body"><div class="calendar-post-meta"><span>${escapeHTML(item.platform)}</span><span>${escapeHTML(item.time)}</span><span class="calendar-status status-${item.status.toLowerCase().replace(/[^a-z]+/g,"-")}">${escapeHTML(item.status)}</span></div><h3>${escapeHTML(item.title)}</h3><p>${escapeHTML(item.format)}${item.caption ? ` · ${escapeHTML(item.caption)}` : ""}</p><div class="calendar-post-actions"><label class="sr-only" for="status-${escapeHTML(item.id)}">Update status</label><select id="status-${escapeHTML(item.id)}" data-calendar-status="${escapeHTML(item.id)}"><option ${item.status==="Idea"?"selected":""}>Idea</option><option ${item.status==="In production"?"selected":""}>In production</option><option ${item.status==="Ready"?"selected":""}>Ready</option><option ${item.status==="Published"?"selected":""}>Published</option></select><button class="text-button" data-calendar-edit="${escapeHTML(item.id)}">Edit</button><button class="text-button" data-calendar-delete="${escapeHTML(item.id)}">Delete</button></div></div></article>`).join("");
+      $$('[data-calendar-status]', $("#calendarPosts")).forEach(control => control.addEventListener("change", () => { const items=loadCalendar(); const item=items.find(entry=>entry.id===control.dataset.calendarStatus); if(item){item.status=control.value;saveCalendar(items);toast("Post status updated.");} }));
+      $$('[data-calendar-delete]', $("#calendarPosts")).forEach(button => button.addEventListener("click", () => { const item=loadCalendar().find(entry=>entry.id===button.dataset.calendarDelete); if(item && window.confirm(`Delete “${item.title}” from your calendar?`)){saveCalendar(loadCalendar().filter(entry=>entry.id!==item.id));toast("Post removed from calendar.");} }));
+      $$('[data-calendar-edit]', $("#calendarPosts")).forEach(button => button.addEventListener("click", () => { const item=loadCalendar().find(entry=>entry.id===button.dataset.calendarEdit); if(!item)return; $("#calendarTitle").value=item.title; calendarDate.value=item.date; $("#calendarTime").value=item.time; $("#calendarPlatform").value=item.platform; $("#calendarFormat").value=item.format; $("#calendarCaption").value=item.caption; $("#calendarStatus").value=item.status; saveCalendar(loadCalendar().filter(entry=>entry.id!==item.id)); $("#calendarTitle").focus(); toast("Post loaded into the form. Save it to confirm your edits."); }));
+    }
+    function todayString(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+    $("#calendarForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const item={id:crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`,title:$("#calendarTitle").value.trim(),date:calendarDate.value,time:$("#calendarTime").value,platform:$("#calendarPlatform").value,format:$("#calendarFormat").value,caption:$("#calendarCaption").value.trim(),status:$("#calendarStatus").value,createdAt:new Date().toISOString()};
+      if(!item.title||!item.date||!item.time)return;
+      const items=loadCalendar();items.push(item);saveCalendar(items);event.target.reset();calendarDate.value=todayString();$("#calendarTime").value="12:00";toast("Post added to your content calendar.");
+    });
+    $("#calendarFilter").addEventListener("change",renderCalendar);
+    $("#calendarSearch").addEventListener("input",renderCalendar);
+    $("#exportCalendar").addEventListener("click",()=>{const items=loadCalendar();if(!items.length){toast("Add a post before exporting.");return;}const cols=["title","date","time","platform","format","status","caption"];const csv=[cols.join(","),...items.map(item=>cols.map(key=>`"${String(item[key]||"").replace(/"/g,'""')}"`).join(","))].join("\r\n");downloadText("motionstudio-content-calendar.csv",csv,"text/csv;charset=utf-8");});
+    $("#exportCalendarJson").addEventListener("click",()=>downloadText("motionstudio-content-calendar-backup.json",JSON.stringify(loadCalendar(),null,2),"application/json;charset=utf-8"));
+    renderCalendar();
+  }
 
   refreshCaptionPreview();
 })();

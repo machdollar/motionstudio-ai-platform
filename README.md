@@ -37,7 +37,7 @@ On Android, if GitHub's web uploader cannot select several files at once, use a 
 
 ## Important scope notes
 
-This is a working front-end prototype, not a connected AI media-generation service. It generates prompts, briefs, planning scores, scripts, and text exports in the browser. It does **not** yet render videos/images, fetch YouTube transcripts automatically, perform lip-sync/character replacement, remove captions from media, or enhance videos. Those capabilities require a provider API and usually a secure backend. Do not put private API keys in `app.js` or any browser-side file.
+This is a working front-end prototype, not a connected AI media-generation service. Content Calendar entries and prompts are stored locally in the current browser; they do not sync across devices. It generates prompts, briefs, planning scores, scripts, and text exports in the browser. It does **not** yet render videos/images, fetch YouTube transcripts automatically, perform lip-sync/character replacement, remove captions from media, or enhance videos. Those capabilities require a provider API and usually a secure backend. Do not put private API keys in `app.js` or any browser-side file.
 
 Shorts scores are simple heuristic planning aids, not reliable predictions of views, virality, or engagement. Source timestamps are exact only when your pasted transcript contains them. Otherwise timestamps and caption timing are estimates that should be reviewed before publishing.
 
