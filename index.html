@@ -27,6 +27,7 @@
         <button class="nav-item" data-view="captions"><span class="nav-icon">CC</span> Voice & Captions</button>
         <button class="nav-item" data-view="projects"><span class="nav-icon">▤</span> Project Dashboard</button>
         <button class="nav-item" data-view="calendar"><span class="nav-icon">▦</span> Content Calendar</button>
+        <button class="nav-item" data-view="assets"><span class="nav-icon">▧</span> Media Asset Library</button>
         <button class="nav-item" data-view="library"><span class="nav-icon">◇</span> Prompt Library</button>
       </nav>
       <div class="sidebar-bottom">
@@ -250,7 +251,38 @@
           <div class="empty-output compact-empty" id="libraryEmpty"><div class="empty-icon">◇</div><h3>Your library is ready</h3><p>Save prompts above. They stay in this browser on this device.</p></div>
         </section>
 
-        <section class="view" id="view-settings">
+        
+<section class="view" id="view-assets">
+  <div class="page-heading">
+    <div><p class="eyebrow">CREATIVE WORKSPACE</p><h1>Media Asset Library</h1><p class="muted">Keep images, video links, audio references, thumbnails, and notes organized in one searchable place.</p></div>
+    <div class="heading-actions"><button class="button button-secondary" id="assetExport">Export library</button></div>
+  </div>
+  <div class="stats-grid asset-stats">
+    <article class="stat-card"><span class="stat-label">All assets</span><strong id="assetCount">0</strong><span class="stat-foot">Saved in this browser</span></article>
+    <article class="stat-card"><span class="stat-label">Images</span><strong id="assetImageCount">0</strong><span class="stat-foot">Visual references</span></article>
+    <article class="stat-card"><span class="stat-label">Video & audio</span><strong id="assetMediaCount">0</strong><span class="stat-foot">Media links</span></article>
+  </div>
+  <div class="panel asset-form-panel">
+    <div class="panel-heading"><div><h2>Add an asset</h2><p class="muted">Save a file reference or a web link. Files selected here are kept in this browser when storage permits.</p></div></div>
+    <form id="assetForm" class="form-grid">
+      <label>Asset name<input id="assetName" required maxlength="100" placeholder="e.g. Product hero image"></label>
+      <label>Asset type<select id="assetType"><option value="image">Image</option><option value="video">Video</option><option value="audio">Audio</option><option value="thumbnail">Thumbnail</option><option value="document">Document</option><option value="other">Other</option></select></label>
+      <label>Project / campaign<input id="assetProject" maxlength="100" placeholder="e.g. Summer launch"></label>
+      <label>Tags<input id="assetTags" maxlength="200" placeholder="product, lifestyle, blue"></label>
+      <label class="field-wide">Web URL (optional)<input id="assetUrl" type="url" placeholder="https://example.com/asset"></label>
+      <label class="field-wide">Choose a local image or small file (optional)<input id="assetFile" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx"></label>
+      <label class="field-wide">Notes<textarea id="assetNotes" rows="3" maxlength="1200" placeholder="Usage rights, edit notes, source, or where this asset belongs"></textarea></label>
+      <div class="field-wide form-actions"><button class="button button-primary" type="submit">Save asset</button><button class="button button-secondary" type="reset">Clear form</button></div>
+    </form>
+    <p class="hint">Storage note: large files may exceed browser storage limits. For best results, store large media in a trusted cloud drive and save its link here.</p>
+  </div>
+  <div class="panel">
+    <div class="panel-heading asset-toolbar"><div><h2>Your assets</h2><p class="muted">Search, filter, open, edit, or remove saved entries.</p></div><div class="asset-filters"><input id="assetSearch" type="search" placeholder="Search assets..." aria-label="Search assets"><select id="assetFilter" aria-label="Filter assets"><option value="all">All types</option><option value="image">Images</option><option value="video">Videos</option><option value="audio">Audio</option><option value="thumbnail">Thumbnails</option><option value="document">Documents</option><option value="other">Other</option></select></div></div>
+    <div id="assetGrid" class="asset-grid"><div class="empty-state"><h3>Your library is empty</h3><p>Add your first asset using the form above.</p></div></div>
+  </div>
+</section>
+
+<section class="view" id="view-settings">
           <div class="page-heading"><div><div class="eyebrow">PERSONALIZE / 11</div><h1>Studio settings</h1><p>Choose defaults for new creative briefs.</p></div><span class="heading-icon gray">⚙</span></div>
           <div class="panel settings-panel">
             <div class="setting-row"><div><h3>Default visual style</h3><p>Used as the initial style in AI Video Studio.</p></div><select id="settingStyle"><option>Cinematic realism</option><option>Documentary</option><option>Anime-inspired</option><option>3D animation</option><option>Product commercial</option><option>Dreamlike / surreal</option><option>Vintage film</option></select></div>

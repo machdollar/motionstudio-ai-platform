@@ -60,3 +60,10 @@ Shorts scores are simple heuristic planning aids, not reliable predictions of vi
 The Project Dashboard lets you create, edit, search, filter, and delete project records. Each project can store a type, status, optional target date, and notes. The “Open studio” action navigates to the related workspace. Project data is saved in browser local storage and can be exported/imported as JSON.
 
 This remains a static front-end application. Project records are local to the current browser and do not sync between users or devices.
+
+
+## Version 5 — Media Asset Library
+- Added a searchable media asset library for images, videos, audio, thumbnails, documents, and other references.
+- Assets can include project names, comma-separated tags, notes, and safe HTTP(S) links.
+- Small local files (up to 2 MB) can be saved in browser storage; larger media should be linked from trusted storage.
+- Export the library as JSON for backup. This is browser-local and does not sync across devices.

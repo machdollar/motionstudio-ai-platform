@@ -492,4 +492,117 @@
   }
 
   refreshCaptionPreview();
+
+  // Media Asset Library — browser-local organizer with JSON export.
+  const ASSET_KEY = "motionstudio.assets.v1";
+  let assets = loadAssets();
+  function loadAssets() {
+    try {
+      const value = JSON.parse(localStorage.getItem(ASSET_KEY) || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  }
+  function saveAssets() {
+    try {
+      localStorage.setItem(ASSET_KEY, JSON.stringify(assets));
+      return true;
+    } catch {
+      toast("Browser storage is full. Try a smaller file or save a web link instead.");
+      return false;
+    }
+  }
+  function assetTypeLabel(type) {
+    return ({image:"Image",video:"Video",audio:"Audio",thumbnail:"Thumbnail",document:"Document",other:"Other"})[type] || "Other";
+  }
+  function renderAssets() {
+    const query = ($("#assetSearch")?.value || "").trim().toLowerCase();
+    const filter = $("#assetFilter")?.value || "all";
+    const list = assets.filter(item => (filter === "all" || item.type === filter) &&
+      [item.name,item.project,item.tags,item.notes,item.type].join(" ").toLowerCase().includes(query));
+    $("#assetCount").textContent = assets.length;
+    $("#assetImageCount").textContent = assets.filter(item => ["image","thumbnail"].includes(item.type)).length;
+    $("#assetMediaCount").textContent = assets.filter(item => ["video","audio"].includes(item.type)).length;
+    const grid = $("#assetGrid");
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty-state"><h3>${assets.length ? "No matching assets" : "Your library is empty"}</h3><p>${assets.length ? "Try another search or filter." : "Add your first asset using the form above."}</p></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(item => {
+      const preview = item.dataUrl && item.type !== "video" && item.type !== "audio"
+        ? `<img src="${item.dataUrl}" alt="${escapeHTML(item.name)} preview">`
+        : item.dataUrl && item.type === "video"
+          ? `<video src="${item.dataUrl}" controls preload="metadata"></video>`
+          : ({image:"▧",thumbnail:"▣",video:"▶",audio:"♫",document:"▤",other:"◇"})[item.type] || "◇";
+      const tags = (item.tags || "").split(",").map(tag => tag.trim()).filter(Boolean).map(tag => `<span class="asset-tag">${escapeHTML(tag)}</span>`).join("");
+      const link = safeUrl(item.url);
+      return `<article class="asset-card"><div class="asset-preview">${preview}</div><div class="asset-card-body"><h3>${escapeHTML(item.name)}</h3><p class="asset-meta">${escapeHTML(assetTypeLabel(item.type))}${item.project ? " · " + escapeHTML(item.project) : ""}</p><div class="asset-tags">${tags}</div>${item.notes ? `<p class="asset-notes">${escapeHTML(item.notes)}</p>` : ""}${link ? `<a class="asset-url" href="${escapeHTML(link)}" target="_blank" rel="noopener noreferrer">Open linked asset ↗</a>` : ""}<div class="asset-actions"><button class="button button-secondary" data-asset-edit="${item.id}">Edit</button><button class="button button-secondary" data-asset-copy="${item.id}">Copy details</button><button class="button button-danger" data-asset-delete="${item.id}">Delete</button></div></div></article>`;
+    }).join("");
+    grid.querySelectorAll("[data-asset-delete]").forEach(button => button.addEventListener("click", () => {
+      const item = assets.find(asset => asset.id === button.dataset.assetDelete);
+      if (!item || !confirm(`Delete "${item.name}" from your library?`)) return;
+      assets = assets.filter(asset => asset.id !== item.id);
+      saveAssets(); renderAssets(); toast("Asset deleted.");
+    }));
+    grid.querySelectorAll("[data-asset-copy]").forEach(button => button.addEventListener("click", () => {
+      const item = assets.find(asset => asset.id === button.dataset.assetCopy);
+      if (item) copyText(`Name: ${item.name}\nType: ${assetTypeLabel(item.type)}\nProject: ${item.project || ""}\nTags: ${item.tags || ""}\nURL: ${item.url || ""}\nNotes: ${item.notes || ""}`);
+    }));
+    grid.querySelectorAll("[data-asset-edit]").forEach(button => button.addEventListener("click", () => {
+      const item = assets.find(asset => asset.id === button.dataset.assetEdit);
+      if (!item) return;
+      $("#assetName").value = item.name; $("#assetType").value = item.type;
+      $("#assetProject").value = item.project || ""; $("#assetTags").value = item.tags || "";
+      $("#assetUrl").value = item.url || ""; $("#assetNotes").value = item.notes || "";
+      $("#assetForm").dataset.editing = item.id;
+      $("#assetForm").scrollIntoView({behavior:"smooth",block:"start"});
+      toast("Edit the fields, then save the asset.");
+    }));
+  }
+  const assetForm = $("#assetForm");
+  if (assetForm) {
+    assetForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      const name = $("#assetName").value.trim();
+      if (!name) return;
+      const file = $("#assetFile").files[0];
+      let dataUrl = "";
+      if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          toast("That file is over 2 MB. Save a cloud link instead to avoid filling browser storage.");
+          return;
+        }
+        dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Could not read selected file."));
+          reader.readAsDataURL(file);
+        }).catch(() => "");
+      }
+      const editingId = assetForm.dataset.editing;
+      const previous = editingId ? assets.find(item => item.id === editingId) : null;
+      const entry = {
+        id: editingId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
+        name, type:$("#assetType").value, project:$("#assetProject").value.trim(),
+        tags:$("#assetTags").value.trim(), url:safeUrl($("#assetUrl").value.trim()),
+        notes:$("#assetNotes").value.trim(), dataUrl:dataUrl || (previous ? previous.dataUrl : ""),
+        fileName:file ? file.name : (previous ? previous.fileName : ""),
+        updatedAt:new Date().toISOString(), createdAt:previous ? previous.createdAt : new Date().toISOString()
+      };
+      if (editingId) assets = assets.map(item => item.id === editingId ? entry : item);
+      else assets.unshift(entry);
+      if (saveAssets()) {
+        delete assetForm.dataset.editing;
+        assetForm.reset(); renderAssets(); toast(editingId ? "Asset updated." : "Asset saved.");
+      }
+    });
+    assetForm.addEventListener("reset", () => { delete assetForm.dataset.editing; });
+    $("#assetSearch").addEventListener("input", renderAssets);
+    $("#assetFilter").addEventListener("change", renderAssets);
+    $("#assetExport").addEventListener("click", () => {
+      downloadText("motionstudio-media-assets.json", JSON.stringify({schemaVersion:1,exportedAt:new Date().toISOString(),assets}, null, 2), "application/json;charset=utf-8");
+      toast("Media library exported.");
+    });
+    renderAssets();
+  }
+
 })();
