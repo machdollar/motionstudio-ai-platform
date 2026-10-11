@@ -25,6 +25,7 @@
         <button class="nav-item" data-view="ugc"><span class="nav-icon">◉</span> UGC & Ad Studio</button>
         <button class="nav-item" data-view="script"><span class="nav-icon">≡</span> Scriptwriter</button>
         <button class="nav-item" data-view="captions"><span class="nav-icon">CC</span> Voice & Captions</button>
+        <button class="nav-item" data-view="projects"><span class="nav-icon">▤</span> Project Dashboard</button>
         <button class="nav-item" data-view="calendar"><span class="nav-icon">▦</span> Content Calendar</button>
         <button class="nav-item" data-view="library"><span class="nav-icon">◇</span> Prompt Library</button>
       </nav>
@@ -194,6 +195,29 @@
           </div>
         </section>
 
+        <section class="view" id="view-projects">
+          <div class="page-heading"><div><div class="eyebrow">YOUR WORK / 08</div><h1>Project Dashboard</h1><p>Organize creative projects, track their progress, and jump back into the right studio.</p></div><span class="heading-icon purple">▤</span></div>
+          <div class="project-summary" id="projectSummary"></div>
+          <div class="project-layout">
+            <div class="panel project-form-panel"><div class="panel-heading"><div><h2 id="projectFormHeading">Create a project</h2><p>Keep a simple brief and status for each idea.</p></div></div>
+              <form id="projectForm">
+                <input id="projectId" type="hidden">
+                <div class="field"><label for="projectTitle">Project name</label><input id="projectTitle" required maxlength="100" placeholder="e.g. Summer product launch"></div>
+                <div class="field-row"><div class="field"><label for="projectType">Project type</label><select id="projectType"><option>Video</option><option>Shorts</option><option>Image</option><option>UGC / Ad</option><option>Script</option><option>Campaign</option><option>Other</option></select></div><div class="field"><label for="projectStatus">Status</label><select id="projectStatus"><option>Idea</option><option>In progress</option><option>Review</option><option>Completed</option></select></div></div>
+                <div class="field"><label for="projectDue">Target date (optional)</label><input id="projectDue" type="date"></div>
+                <div class="field"><label for="projectDescription">Project notes</label><textarea id="projectDescription" rows="4" maxlength="1200" placeholder="Goal, audience, deliverables, next steps..."></textarea></div>
+                <div class="project-form-actions"><button class="button button-primary" id="saveProjectButton" type="submit">Save project <span>＋</span></button><button class="button button-secondary hidden" id="cancelProjectEdit" type="button">Cancel edit</button></div>
+              </form>
+            </div>
+            <div class="project-workspace"><div class="project-toolbar"><div class="search-field"><span>⌕</span><input id="projectSearch" type="search" placeholder="Search projects..." aria-label="Search projects"></div><select id="projectFilter" aria-label="Filter projects"><option>All projects</option><option>Idea</option><option>In progress</option><option>Review</option><option>Completed</option></select></div>
+              <div class="project-grid" id="projectGrid"></div>
+              <div class="empty-output compact-empty" id="projectEmpty"><div class="empty-icon">▤</div><h3>Your project space is ready</h3><p>Create a project to keep its goal, type, target date, and status together.</p></div>
+              <div class="project-footer-actions"><button class="button button-secondary" id="exportProjects" type="button">Export projects JSON ↓</button><button class="button button-secondary" id="importProjectsButton" type="button">Import backup ↑</button><input id="importProjectsFile" type="file" accept="application/json,.json" class="hidden"></div>
+            </div>
+          </div>
+          <div class="notice"><span class="notice-icon">i</span><div><strong>Local workspace</strong><p>Projects are saved in this browser on this device. Export a JSON backup before clearing browser data or switching devices.</p></div></div>
+        </section>
+
         <section class="view" id="view-calendar">
           <div class="page-heading"><div><div class="eyebrow">PUBLISH WITH A PLAN / 08</div><h1>Content Calendar</h1><p>Plan posts across platforms, track their status, and export your schedule. Your calendar is saved in this browser.</p></div><span class="heading-icon purple">▦</span></div>
           <div class="calendar-summary" id="calendarSummary"></div>
@@ -219,7 +243,7 @@
         </section>
 
         <section class="view" id="view-library">
-          <div class="page-heading"><div><div class="eyebrow">YOUR CREATIVE ASSETS / 09</div><h1>Prompt Library</h1><p>Keep reusable prompts and briefs in this browser’s local storage.</p></div><span class="heading-icon purple">◇</span></div>
+          <div class="page-heading"><div><div class="eyebrow">YOUR CREATIVE ASSETS / 10</div><h1>Prompt Library</h1><p>Keep reusable prompts and briefs in this browser’s local storage.</p></div><span class="heading-icon purple">◇</span></div>
           <div class="library-toolbar"><div><h2>Saved prompts</h2><p id="libraryCount">0 saved items</p></div><button class="button button-secondary" id="exportLibrary">Export library JSON ↓</button></div>
           <div class="panel save-prompt-panel"><form id="savePromptForm"><div class="field-row"><div class="field"><label for="savedPromptTitle">Prompt name</label><input id="savedPromptTitle" required placeholder="e.g. Cinematic product reveal"></div><div class="field"><label for="savedPromptType">Category</label><select id="savedPromptType"><option>Video</option><option>Shorts</option><option>Image</option><option>UGC / Ads</option><option>Script</option><option>Other</option></select></div></div><label for="savedPromptText">Prompt or brief</label><textarea id="savedPromptText" rows="3" required placeholder="Paste a prompt or brief to save..."></textarea><button class="button button-primary" type="submit">Save prompt <span>＋</span></button></form></div>
           <div class="saved-grid" id="savedPrompts"></div>
@@ -227,7 +251,7 @@
         </section>
 
         <section class="view" id="view-settings">
-          <div class="page-heading"><div><div class="eyebrow">PERSONALIZE / 10</div><h1>Studio settings</h1><p>Choose defaults for new creative briefs.</p></div><span class="heading-icon gray">⚙</span></div>
+          <div class="page-heading"><div><div class="eyebrow">PERSONALIZE / 11</div><h1>Studio settings</h1><p>Choose defaults for new creative briefs.</p></div><span class="heading-icon gray">⚙</span></div>
           <div class="panel settings-panel">
             <div class="setting-row"><div><h3>Default visual style</h3><p>Used as the initial style in AI Video Studio.</p></div><select id="settingStyle"><option>Cinematic realism</option><option>Documentary</option><option>Anime-inspired</option><option>3D animation</option><option>Product commercial</option><option>Dreamlike / surreal</option><option>Vintage film</option></select></div>
             <div class="setting-row"><div><h3>Default aspect ratio</h3><p>Choose the format you create most often.</p></div><select id="settingRatio"><option value="16:9">16:9 — YouTube</option><option value="9:16">9:16 — Shorts / Reels</option><option value="1:1">1:1 — Square</option><option value="4:5">4:5 — Social feed</option></select></div>

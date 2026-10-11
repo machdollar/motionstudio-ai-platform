@@ -53,3 +53,10 @@ Shorts scores are simple heuristic planning aids, not reliable predictions of vi
 - `styles.css` — responsive visual design
 - `app.js` — navigation, local interactions, generators, storage, downloads
 - `README.md` — setup and deployment guide
+
+
+## Version 4 — Project Dashboard
+
+The Project Dashboard lets you create, edit, search, filter, and delete project records. Each project can store a type, status, optional target date, and notes. The “Open studio” action navigates to the related workspace. Project data is saved in browser local storage and can be exported/imported as JSON.
+
+This remains a static front-end application. Project records are local to the current browser and do not sync between users or devices.

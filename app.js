@@ -2,8 +2,8 @@
   "use strict";
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-  const STORAGE_KEYS = { prompts: "motionstudio.prompts.v1", settings: "motionstudio.settings.v1", calendar: "motionstudio.calendar.v1" };
-  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", calendar:"Content Calendar", library:"Prompt Library", settings:"Studio settings" };
+  const STORAGE_KEYS = { prompts: "motionstudio.prompts.v1", settings: "motionstudio.settings.v1", calendar: "motionstudio.calendar.v1", projects: "motionstudio.projects.v1" };
+  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", projects:"Project Dashboard", calendar:"Content Calendar", library:"Prompt Library", settings:"Studio settings" };
   let toastTimer;
   let currentScript = "";
   let currentImageUrl = "";
@@ -393,6 +393,63 @@
     toast("Local data cleared.");
   });
 
+
+  // Project Dashboard: local-first project tracking, editing, and JSON backup.
+  const projectForm = $("#projectForm");
+  if (projectForm) {
+    const projectStatusOptions = ["Idea", "In progress", "Review", "Completed"];
+    const projectTypeView = { "Video":"video", "Shorts":"shorts", "Image":"image", "UGC / Ad":"ugc", "Script":"script", "Campaign":"calendar", "Other":"overview" };
+    function loadProjects() {
+      try { const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.projects) || "[]"); return Array.isArray(data) ? data.filter(item => item && item.id && item.title) : []; }
+      catch { return []; }
+    }
+    function saveProjects(items) { localStorage.setItem(STORAGE_KEYS.projects, JSON.stringify(items)); renderProjects(); }
+    function resetProjectForm() {
+      projectForm.reset(); $("#projectId").value = ""; $("#projectFormHeading").textContent = "Create a project";
+      $("#saveProjectButton").innerHTML = 'Save project <span>＋</span>'; $("#cancelProjectEdit").classList.add("hidden");
+    }
+    function renderProjects() {
+      const all = loadProjects().sort((a,b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""));
+      const filter = $("#projectFilter").value;
+      const query = $("#projectSearch").value.trim().toLowerCase();
+      const visible = all.filter(item => (filter === "All projects" || item.status === filter) && `${item.title} ${item.type} ${item.description}`.toLowerCase().includes(query));
+      const countBy = status => all.filter(item => item.status === status).length;
+      $("#projectSummary").innerHTML = `<div class="project-stat"><span>Total projects</span><strong>${all.length}</strong></div><div class="project-stat"><span>In progress</span><strong>${countBy("In progress")}</strong></div><div class="project-stat"><span>In review</span><strong>${countBy("Review")}</strong></div><div class="project-stat"><span>Completed</span><strong>${countBy("Completed")}</strong></div>`;
+      $("#projectGrid").innerHTML = visible.map(item => {
+        const statusClass = item.status.toLowerCase().replace(/[^a-z]+/g,"-");
+        const due = item.dueDate ? `Target ${new Date(`${item.dueDate}T12:00:00`).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}` : "No target date";
+        return `<article class="project-card"><div class="project-card-top"><span class="project-type">${escapeHTML(item.type || "Other")}</span><span class="project-status status-${escapeHTML(statusClass)}">${escapeHTML(item.status || "Idea")}</span></div><h3>${escapeHTML(item.title)}</h3><p class="project-description">${escapeHTML(item.description || "No notes added yet.")}</p><div class="project-due">◷ ${escapeHTML(due)}</div><div class="project-card-actions"><button class="button button-primary button-small" type="button" data-project-open="${escapeHTML(item.id)}">Open studio ↗</button><button class="text-button" type="button" data-project-edit="${escapeHTML(item.id)}">Edit</button><button class="text-button" type="button" data-project-delete="${escapeHTML(item.id)}">Delete</button></div></article>`;
+      }).join("");
+      $("#projectEmpty").classList.toggle("hidden", visible.length > 0);
+      if (!all.length) { $("#projectEmpty h3").textContent = "Your project space is ready"; $("#projectEmpty p").textContent = "Create a project to keep its goal, type, target date, and status together."; }
+      else if (!visible.length) { $("#projectEmpty h3").textContent = "No matching projects"; $("#projectEmpty p").textContent = "Try another search or choose a different status filter."; }
+      $$('[data-project-open]', $("#projectGrid")).forEach(button => button.addEventListener("click", () => { const item = loadProjects().find(p => p.id === button.dataset.projectOpen); if (item) { showView(projectTypeView[item.type] || "overview"); toast(`Opened ${item.type} studio for “${item.title}”.`); } }));
+      $$('[data-project-edit]', $("#projectGrid")).forEach(button => button.addEventListener("click", () => { const item = loadProjects().find(p => p.id === button.dataset.projectEdit); if (!item) return; $("#projectId").value=item.id; $("#projectTitle").value=item.title; $("#projectType").value=item.type || "Other"; $("#projectStatus").value=item.status || "Idea"; $("#projectDue").value=item.dueDate || ""; $("#projectDescription").value=item.description || ""; $("#projectFormHeading").textContent="Edit project"; $("#saveProjectButton").textContent="Update project"; $("#cancelProjectEdit").classList.remove("hidden"); $("#projectTitle").focus(); }));
+      $$('[data-project-delete]', $("#projectGrid")).forEach(button => button.addEventListener("click", () => { const item=loadProjects().find(p=>p.id===button.dataset.projectDelete); if(item && window.confirm(`Delete project “${item.title}”?`)){saveProjects(loadProjects().filter(p=>p.id!==item.id));toast("Project deleted.");} }));
+    }
+    projectForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const id = $("#projectId").value;
+      const existing = loadProjects();
+      const old = existing.find(item => item.id === id);
+      const item = { id: id || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`), title: $("#projectTitle").value.trim(), type: $("#projectType").value, status: $("#projectStatus").value, dueDate: $("#projectDue").value, description: $("#projectDescription").value.trim(), createdAt: old?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+      if (!item.title) return;
+      const next = id ? existing.map(project => project.id === id ? item : project) : [item, ...existing];
+      saveProjects(next); resetProjectForm(); toast(id ? "Project updated." : "Project created.");
+    });
+    $("#cancelProjectEdit").addEventListener("click", resetProjectForm);
+    $("#projectSearch").addEventListener("input", renderProjects);
+    $("#projectFilter").addEventListener("change", renderProjects);
+    $("#exportProjects").addEventListener("click", () => { const items=loadProjects(); if(!items.length){toast("Create a project before exporting.");return;} downloadText("motionstudio-projects-backup.json", JSON.stringify(items,null,2), "application/json;charset=utf-8"); });
+    $("#importProjectsButton").addEventListener("click", () => $("#importProjectsFile").click());
+    $("#importProjectsFile").addEventListener("change", async event => {
+      const file=event.target.files && event.target.files[0]; if(!file)return;
+      try { const parsed=JSON.parse(await file.text()); if(!Array.isArray(parsed) || parsed.some(item=>!item || typeof item.title!=="string")) throw new Error("Invalid format"); const current=loadProjects(); const normalized=parsed.map(item=>({id:item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,title:item.title.slice(0,100),type:["Video","Shorts","Image","UGC / Ad","Script","Campaign","Other"].includes(item.type)?item.type:"Other",status:projectStatusOptions.includes(item.status)?item.status:"Idea",dueDate:typeof item.dueDate==="string"?item.dueDate:"",description:typeof item.description==="string"?item.description.slice(0,1200):"",createdAt:item.createdAt || new Date().toISOString(),updatedAt:item.updatedAt || new Date().toISOString()})); const merged=[...current]; normalized.forEach(item=>{const index=merged.findIndex(old=>old.id===item.id);if(index>=0)merged[index]=item;else merged.push(item);}); saveProjects(merged); toast(`Imported ${normalized.length} project${normalized.length===1?"":"s"}.`); }
+      catch { toast("That file isn't a valid MotionStudio project backup."); }
+      event.target.value="";
+    });
+    renderProjects();
+  }
 
   // Content Calendar: local-first scheduling and exports.
   const calendarDate = $("#calendarDate");
