@@ -278,24 +278,91 @@ async function generateWithAI(task, prompt, platform = "YouTube", tone = "engagi
     toast("Ad storyboard created.");
   });
 
-  $("#scriptForm").addEventListener("submit", event => {
-    event.preventDefault();
-    const topic = $("#scriptTopic").value.trim();
-    if (!topic) return;
-    const type = $("#scriptType").value, length = $("#scriptLength").value, tone = $("#scriptTone").value, audience = $("#scriptAudience").value.trim() || "a curious general audience";
-    const seconds = parseInt(length,10) * (length.includes("minute") ? 60 : 1);
-    const wordTarget = Math.round(seconds * 2.3);
-    currentScript = `${type.toUpperCase()} SCRIPT DRAFT\nTopic: ${topic}\nAudience: ${audience}\nTarget length: ${length}\nVoice: ${tone}\n\nHOOK\nStart with a clear, specific line that makes the audience curious about ${topic.toLowerCase()}. Promise a useful takeaway without exaggerating what the video can deliver.\n\nINTRODUCTION\nSet up why ${topic.toLowerCase()} matters to ${audience}. Tell viewers what they will understand by the end, then move quickly into the main point.\n\nMAIN POINT 1 — THE CONTEXT\nExplain the core idea in plain language. Give one concrete example, and define any terms a new viewer might not know.\n\nMAIN POINT 2 — THE PRACTICAL DETAIL\nWalk through the most useful part step by step. Use a short story, demonstration, comparison, or example that makes the point memorable. Keep the narration ${tone.toLowerCase()} and avoid repeating the same claim.\n\nMAIN POINT 3 — THE TAKEAWAY\nAddress a likely question or mistake. Explain what the viewer can do next and where uncertainty or limitations remain.\n\nCLOSING\nRecap the main lesson in one or two sentences. Invite the viewer to comment with a relevant question or follow for more content on this topic.\n\nPRODUCTION NOTES\n- Format: ${type}\n- Estimated target: about ${wordTarget} spoken words, depending on delivery pace.\n- Audience: ${audience}\n- Tone: ${tone}\n- Add B-roll or on-screen examples whenever a concept would be clearer visually.\n\nEDITOR NOTE\nThis is a structured starter draft, not a fully researched script. Add verified facts, examples, and your own perspective before publishing.`;
-    const body = currentScript.split("\n").map(line => line ? `<p>${escapeHTML(line)}</p>` : "").join("");
-    outputHTML("#scriptOutput", "Script draft", body, false);
-    $("#scriptOutput").insertAdjacentHTML("beforeend", '<div class="result-actions"><button class="button button-secondary" id="copyScriptResult">Copy script</button><button class="button button-secondary" id="downloadScriptResult">Download .txt</button></div>');
-    $("#copyScriptResult").addEventListener("click", () => copyText(currentScript));
-    $("#downloadScriptResult").addEventListener("click", () => downloadText("motionstudio-script.txt", currentScript));
+$("#scriptForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const topic = $("#scriptTopic").value.trim();
+  if (!topic) return;
+
+  const button = event.submitter;
+  const type = $("#scriptType").value;
+  const length = $("#scriptLength").value;
+  const tone = $("#scriptTone").value;
+  const audience =
+    $("#scriptAudience").value.trim() || "a curious general audience";
+
+  const prompt = `
+Write an original, engaging ${type} script about: ${topic}
+
+Target length: ${length}
+Target audience: ${audience}
+Tone: ${tone}
+
+Requirements:
+- Start with a compelling hook.
+- Develop the main points with useful details and examples.
+- Use natural narration and smooth transitions.
+- Avoid unnecessary repetition and unsupported factual claims.
+- Include a satisfying conclusion and a relevant call to action.
+- Add visual or B-roll suggestions where useful.
+- Make the script suitable for the requested format.
+- Do not claim that the content is guaranteed to go viral.
+
+Use clear section headings. Aim for the requested length and make
+the script substantial rather than returning only an outline.
+`;
+
+  if (button) button.disabled = true;
+  $("#scriptOutput").innerHTML =
+    '<p class="helper-text">Gemini is writing your script. Please wait…</p>';
+
+  try {
+    currentScript = await generateWithAI(
+      "script",
+      prompt,
+      type,
+      tone
+    );
+
+    const body = currentScript
+      .split("\n")
+      .map(line => line
+        ? `<p>${escapeHTML(line)}</p>`
+        : "")
+      .join("");
+
+    outputHTML("#scriptOutput", "AI-generated script", body, false);
+
+    $("#scriptOutput").insertAdjacentHTML(
+      "beforeend",
+      '<div class="result-actions">' +
+      '<button class="button button-secondary" id="copyScriptResult">Copy script</button>' +
+      '<button class="button button-secondary" id="downloadScriptResult">Download .txt</button>' +
+      '</div>'
+    );
+
+    $("#copyScriptResult").addEventListener(
+      "click",
+      () => copyText(currentScript)
+    );
+
+    $("#downloadScriptResult").addEventListener(
+      "click",
+      () => downloadText("motionstudio-script.txt", currentScript)
+    );
+
     $("#copyScript").disabled = false;
     $("#copyScript").onclick = () => copyText(currentScript);
-    toast("Script draft created.");
-  });
 
+    toast("AI script generated successfully.");
+  } catch (error) {
+    $("#scriptOutput").textContent =
+      error.message || "Could not generate the script. Please try again.";
+    toast("AI generation failed.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
   function populateVoices() {
     if (!("speechSynthesis" in window)) return;
     const select = $("#voiceSelect"), selected = select.value;
