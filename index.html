@@ -119,7 +119,10 @@
               <label for="youtubeUrl">YouTube URL <span class="optional">OPTIONAL REFERENCE</span></label><input id="youtubeUrl" type="url" placeholder="https://youtube.com/watch?v=...">
               <label for="shortsTranscript">Paste transcript or video outline</label><textarea id="shortsTranscript" rows="9" required placeholder="Paste your transcript, notes, or a detailed outline here..."></textarea>
               <div class="field-row"><div class="field"><label for="shortCount">Clips to plan</label><select id="shortCount"><option>3</option><option selected>5</option><option>8</option></select></div><div class="field"><label for="shortPlatform">Target platform</label><select id="shortPlatform"><option>YouTube Shorts</option><option>Instagram Reels</option><option>TikTok</option><option>All vertical platforms</option></select></div></div>
-              <button class="button button-primary full-button" type="submit">Find clip opportunities <span>↗</span></button>
+              <div class="field-row"><div class="field"><label for="shortAudience">Target audience</label><input id="shortAudience" placeholder="e.g. beginner creators"></div><div class="field"><label for="shortTone">Clip style</label><select id="shortTone"><option>Educational</option><option>Storytelling</option><option>Funny / energetic</option><option>Motivational</option><option>Product / promotional</option></select></div></div>
+              <label for="shortCTA">Call to action <span class="optional">OPTIONAL</span></label><input id="shortCTA" placeholder="e.g. Follow for more creator tips">
+              <p class="helper-text">Tip: Include timestamps such as <code>[00:02:14]</code> or <code>00:02:14</code> at the start of transcript lines to preserve source timecodes.</p>
+              <button class="button button-primary full-button" type="submit">Build Shorts production pack <span>↗</span></button>
             </form>
             <div class="panel output-panel"><div class="panel-title"><h2>Clip opportunities</h2><span class="step-label">YOUR RESULTS</span></div><div class="empty-output" id="shortsOutput"><div class="empty-icon">▣</div><h3>Your clips will appear here</h3><p>Add a transcript or outline. MotionStudio will break it into hook-led clip ideas with titles and descriptions.</p></div></div>
           </div>

@@ -88,27 +88,82 @@
     }
     return parts;
   }
+  function parseTimecode(value) {
+    const match = String(value).match(/(?:\[|\()?\b(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\]|\))?/);
+    if (!match) return null;
+    if (match[3] !== undefined) return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+  function formatTimecode(seconds) {
+    const total = Math.max(0, Math.floor(seconds || 0));
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    return h ? `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  }
+  function transcriptSegments(transcript) {
+    const lines = transcript.replace(/\r/g, "\n").split("\n").map(line => line.trim()).filter(Boolean);
+    const hasTimedLines = lines.some(line => parseTimecode(line) !== null);
+    if (hasTimedLines) {
+      let current = null;
+      const segments = [];
+      for (const line of lines) {
+        const time = parseTimecode(line);
+        if (time !== null) {
+          const text = line.replace(/(?:\[|\()?\b\d{1,2}:\d{2}(?::\d{2})?(?:\]|\))?/, "").replace(/^\s*[-–—:|]+\s*/, "").trim();
+          if (text) segments.push({ text, startSeconds: time, timecodeSource: true });
+          else current = { startSeconds: time, text: "", timecodeSource: true };
+          if (current) { segments.push(current); current = null; }
+        } else if (segments.length && segments[segments.length - 1].timecodeSource) {
+          segments[segments.length - 1].text += (segments[segments.length - 1].text ? " " : "") + line;
+        } else {
+          segments.push({ text: line, startSeconds: null, timecodeSource: false });
+        }
+      }
+      const usable = segments.filter(segment => segment.text.trim());
+      if (usable.length) return usable;
+    }
+    return splitSentences(transcript).map(text => ({ text, startSeconds: null, timecodeSource: false }));
+  }
   function estimateClipScore(text) {
     const words = text.trim().split(/\s+/).filter(Boolean);
     const lower = text.toLowerCase();
     let hook = 35, share = 30, clarity = 35;
-    if (/\b(how|why|secret|mistake|never|best|worst|truth|learn|stop|before|after|surprising|because|finally|revealed|changed)\b/i.test(text)) hook += 22;
+    if (/\b(how|why|secret|mistake|never|best|worst|truth|learn|stop|before|after|surprising|because|finally|revealed|changed|three|five|first)\b/i.test(text)) hook += 22;
     if (/[?!]/.test(text)) hook += 9;
     if (/\d/.test(text)) hook += 8;
     if (words.length >= 12 && words.length <= 55) clarity += 35;
     else if (words.length < 12) clarity += 18;
     else clarity += 12;
     if (/\b(you|your|we|I|my|ours|everyone|people)\b/i.test(text)) share += 13;
-    if (/\b(result|lesson|surprise|fail|win|saved|lost|realized|changed|tested|challenge|problem)\b/i.test(lower)) share += 17;
-    return { hook:Math.min(95,hook), share:Math.min(95,share), clarity:Math.min(95,clarity), total:Math.round((hook+share+clarity)/3) };
+    if (/\b(result|lesson|surprise|fail|win|saved|lost|realized|changed|tested|challenge|problem|learned|discovered)\b/i.test(lower)) share += 17;
+    if (/\b(but|however|until|instead|then|because)\b/i.test(lower)) hook += 6;
+    hook = Math.min(95, hook); share = Math.min(95, share); clarity = Math.min(95, clarity);
+    return { hook, share, clarity, total:Math.round((hook + share + clarity) / 3) };
   }
-  function makeTitle(text, index) {
+  function makeTitle(text, index, tone) {
     const clean = text.replace(/^[\s"'“”]+|[\s"'“”]+$/g, "").replace(/[.!?]+$/, "");
     const words = clean.split(/\s+/).filter(Boolean);
     let title = words.slice(0, 9).join(" ");
     if (title.length > 68) title = title.slice(0, 65).replace(/\s+\S*$/, "") + "…";
+    if (tone === "Educational" && !/^(how|why|what|the|3|5|first|one)\b/i.test(title)) title = `Why ${title}`;
+    if (tone === "Motivational" && !/^(how|why|you|your|never|stop)\b/i.test(title)) title = `You need to hear this: ${title}`;
+    if (title.length > 75) title = title.slice(0,72).replace(/\s+\S*$/, "") + "…";
     if (!/[?!]$/.test(title)) title += "?";
     return title || `Clip idea ${index}`;
+  }
+  function csvEscape(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
+  let currentShortsExport = [];
+  let currentShortsMeta = {};
+  function buildClipPack(clip, index, meta) {
+    const title = makeTitle(clip.text, index + 1, meta.tone);
+    const hashtags = meta.platform === "YouTube Shorts" ? "#Shorts #CreatorTips" : meta.platform === "Instagram Reels" ? "#Reels #CreatorTips" : meta.platform === "TikTok" ? "#TikTok #CreatorTips" : "#Shorts #Reels #TikTok #CreatorTips";
+    const audienceLine = meta.audience ? `Made for ${meta.audience}.` : "";
+    const description = [clip.text, audienceLine, `From: ${meta.sourceTitle}`, meta.cta, hashtags].filter(Boolean).join("\n\n");
+    return { ...clip, title, description, hashtags, duration:Math.max(15, Math.min(55, Math.round(clip.text.split(/\s+/).filter(Boolean).length / 2.5))), index:index + 1 };
+  }
+  function srtTimestamp(seconds) {
+    const ms = Math.max(0, Math.floor(seconds * 1000));
+    const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000), milli = ms % 1000;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")},${String(milli).padStart(3,"0")}`;
   }
   $("#shortsForm").addEventListener("submit", event => {
     event.preventDefault();
@@ -117,25 +172,48 @@
     if (!transcript) return;
     const count = Number($("#shortCount").value);
     const platform = $("#shortPlatform").value;
-    const parts = splitSentences(transcript);
-    let clips = parts.map((text, i) => ({ text, index:i, score:estimateClipScore(text) }));
+    const tone = $("#shortTone").value;
+    const audience = $("#shortAudience").value.trim();
+    const cta = $("#shortCTA").value.trim();
+    const sourceUrl = safeUrl($("#youtubeUrl").value);
+    const segments = transcriptSegments(transcript);
+    let elapsed = 0;
+    let clips = segments.map((segment, i) => {
+      const words = segment.text.split(/\s+/).filter(Boolean).length;
+      const startSeconds = segment.startSeconds === null ? elapsed : segment.startSeconds;
+      elapsed = startSeconds + Math.max(2, Math.round(words / 2.5));
+      return { text:segment.text, index:i, startSeconds, timecodeSource:segment.timecodeSource, score:estimateClipScore(segment.text) };
+    }).filter(clip => clip.text.trim().length > 15);
     clips.sort((a,b) => b.score.total - a.score.total);
-    clips = clips.slice(0, count);
+    clips = clips.slice(0, count).map((clip, index) => buildClipPack(clip, index, { sourceTitle, platform, tone, audience, cta }));
+    currentShortsExport = clips;
+    currentShortsMeta = { sourceTitle, platform, tone, audience, cta, sourceUrl };
     const best = clips.reduce((sum, clip) => sum + clip.score.total, 0) / Math.max(clips.length,1);
     const cards = clips.map((clip, i) => {
-      const title = makeTitle(clip.text, i+1);
-      const description = `${clip.text}\n\nWatch the full video: ${sourceTitle}\n#Shorts #CreatorTips`;
-      const seconds = Math.max(15, Math.min(55, Math.round(clip.text.split(/\s+/).length / 2.5)));
-      return `<article class="clip-card"><div class="clip-top"><span class="clip-number">CLIP ${String(i+1).padStart(2,"0")} · EST. ${seconds}s</span><span class="clip-score">Planning score ${clip.score.total}/100</span></div><h3>${escapeHTML(title)}</h3><p><strong>Clip excerpt:</strong> ${escapeHTML(clip.text)}</p><p><strong>Suggested title:</strong> ${escapeHTML(title)}</p><p><strong>Description:</strong> ${escapeHTML(description)}</p><p class="clip-meta">Hook ${clip.score.hook}/100 · Shareability ${clip.score.share}/100 · Clarity ${clip.score.clarity}/100 · Platform: ${escapeHTML(platform)}</p><div class="result-actions"><button class="button button-secondary" data-copy-clip="${i}">Copy clip pack</button></div></article>`;
+      const timecodeNote = clip.timecodeSource ? "Source timestamp" : "Estimated timestamp";
+      return `<article class="clip-card shorts-pack-card"><div class="clip-top"><span class="clip-number">CLIP ${String(i+1).padStart(2,"0")} · ${escapeHTML(formatTimecode(clip.startSeconds))} · ${clip.duration}s</span><span class="clip-score">Score ${clip.score.total}/100</span></div><h3>${escapeHTML(clip.title)}</h3><div class="shorts-score-bars"><span>Hook <b>${clip.score.hook}</b></span><span>Shareability <b>${clip.score.share}</b></span><span>Clarity <b>${clip.score.clarity}</b></span></div><p><strong>Source excerpt</strong><br>${escapeHTML(clip.text)}</p><p><strong>Opening hook idea</strong><br>${escapeHTML(clip.text.split(/[.!?]/)[0].trim() || clip.text)}</p><p><strong>Post description</strong><br>${escapeHTML(clip.description)}</p><p class="clip-meta">${timecodeNote} · ${escapeHTML(platform)} · ${escapeHTML(tone)}</p><div class="result-actions"><button class="button button-secondary" data-copy-clip="${i}">Copy complete clip pack</button></div></article>`;
     }).join("");
-    const note = `<p>Source: ${escapeHTML(sourceTitle)}${safeUrl($("#youtubeUrl").value) ? ` · <a href="${escapeHTML(safeUrl($("#youtubeUrl").value))}" target="_blank" rel="noopener noreferrer">Open source video</a>` : ""}</p><div class="score-row"><div class="score-box"><strong>${Math.round(best)}</strong><span>Average planning score</span></div><div class="score-box"><strong>${clips.length}</strong><span>Clip opportunities</span></div><div class="score-box"><strong>${platform === "All vertical platforms" ? "3" : "1"}</strong><span>Target platform group</span></div></div><p>These scores rank text segments using a simple heuristic. Actual performance depends on editing, audience, timing, delivery, and platform distribution; no score guarantees views.</p>`;
-    $("#shortsOutput").innerHTML = `<div class="result-content">${note}</div>${cards}<div class="result-actions"><button class="button button-secondary" id="downloadAllClips">Download all clip ideas</button></div>`;
-    $$("[data-copy-clip]", $("#shortsOutput")).forEach(button => button.addEventListener("click", () => {
-      const clip = clips[Number(button.dataset.copyClip)];
-      copyText(`Title: ${makeTitle(clip.text, Number(button.dataset.copyClip)+1)}\n\nExcerpt: ${clip.text}\n\nDescription: ${clip.text}\n\nPlanning score: ${clip.score.total}/100`);
+    const note = `<p>Source: ${escapeHTML(sourceTitle)}${sourceUrl ? ` · <a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source video</a>` : ""}</p><div class="score-row"><div class="score-box"><strong>${Math.round(best)}</strong><span>Average planning score</span></div><div class="score-box"><strong>${clips.length}</strong><span>Ranked clip opportunities</span></div><div class="score-box"><strong>${clips.filter(clip => clip.timecodeSource).length}</strong><span>Exact source timestamps</span></div></div><p>Clips are ranked using text-based heuristics. Timestamps are exact only when supplied in your transcript; otherwise they are rough estimates. These scores do not predict or guarantee views.</p>`;
+    const exportActions = `<div class="result-actions shorts-export-actions"><button class="button button-secondary" id="downloadAllClips">Download production pack (.txt)</button><button class="button button-secondary" id="downloadClipsCsv">Export clip plan (.csv)</button><button class="button button-secondary" id="downloadClipSrt">Export caption draft (.srt)</button></div>`;
+    $("#shortsOutput").innerHTML = `<div class="result-content">${note}</div>${cards || '<p class="helper-text">Add a longer transcript with complete sentences to find clip opportunities.</p>'}${exportActions}`;
+    $$('[data-copy-clip]', $("#shortsOutput")).forEach(button => button.addEventListener("click", () => {
+      const clip = currentShortsExport[Number(button.dataset.copyClip)];
+      if (!clip) return;
+      copyText(`CLIP ${clip.index}\nSource start: ${formatTimecode(clip.startSeconds)}\nTitle: ${clip.title}\nDuration estimate: ${clip.duration}s\n\nExcerpt:\n${clip.text}\n\nDescription:\n${clip.description}\n\nScores (heuristic): ${clip.score.total}/100 · Hook ${clip.score.hook} · Shareability ${clip.score.share} · Clarity ${clip.score.clarity}`);
     }));
-    $("#downloadAllClips").addEventListener("click", () => downloadText("motionstudio-shorts-plan.txt", `${sourceTitle}\nPlatform: ${platform}\n\n${clips.map((clip,i)=>`CLIP ${i+1}\nTitle: ${makeTitle(clip.text,i+1)}\nExcerpt: ${clip.text}\nScore: ${clip.score.total}/100 (heuristic)\nHook: ${clip.score.hook}/100 · Shareability: ${clip.score.share}/100 · Clarity: ${clip.score.clarity}/100\n`).join("\n")}`));
-    toast("Shorts plan created.");
+    $("#downloadAllClips").addEventListener("click", () => {
+      const text = `${sourceTitle}\nPlatform: ${platform}\nStyle: ${tone}\nAudience: ${audience || "Not specified"}\n\n${clips.map(clip => `CLIP ${clip.index}\nSource start: ${formatTimecode(clip.startSeconds)}\nDuration estimate: ${clip.duration}s\nTitle: ${clip.title}\nExcerpt: ${clip.text}\nDescription:\n${clip.description}\nScore: ${clip.score.total}/100 (heuristic)\nHook: ${clip.score.hook} · Shareability: ${clip.score.share} · Clarity: ${clip.score.clarity}\n`).join("\n")}`;
+      downloadText("motionstudio-shorts-production-pack.txt", text);
+    });
+    $("#downloadClipsCsv").addEventListener("click", () => {
+      const rows = [["Clip","Start time","Estimated duration (seconds)","Title","Excerpt","Description","Planning score","Hook score","Shareability score","Clarity score"], ...clips.map(clip => [clip.index, formatTimecode(clip.startSeconds), clip.duration, clip.title, clip.text, clip.description, clip.score.total, clip.score.hook, clip.score.share, clip.score.clarity])];
+      downloadText("motionstudio-shorts-clip-plan.csv", rows.map(row => row.map(csvEscape).join(",")).join("\r\n"), "text/csv;charset=utf-8");
+    });
+    $("#downloadClipSrt").addEventListener("click", () => {
+      const srt = clips.map((clip, i) => `${i+1}\n${srtTimestamp(i * clip.duration)} --> ${srtTimestamp(i * clip.duration + clip.duration)}\n${clip.text}\n`).join("\n");
+      downloadText("motionstudio-caption-draft.srt", srt, "application/x-subrip;charset=utf-8");
+    });
+    toast("Shorts production pack created.");
   });
 
   $("#imageFile").addEventListener("change", event => {

@@ -6,7 +6,7 @@ A responsive, static front-end starter for a creator-focused AI workspace. It is
 
 - **Overview dashboard** with navigation to each workflow.
 - **AI Video Studio** — creates structured video-generation briefs from a prompt, visual style, duration, aspect ratio, camera movement, and model family.
-- **Viral Shorts Planner** — splits a pasted transcript or outline into clip opportunities, titles, descriptions, and heuristic hook/shareability/clarity scores.
+- **Viral Shorts Production Pack** — ranks clip opportunities, creates platform-specific titles/descriptions/hashtags, adds audience and style direction, preserves timestamps supplied in transcript lines, estimates timestamps when none are provided, and exports TXT, CSV, and SRT drafts.
 - **Image & Motion** — locally previews a reference image and creates an image/video creative-direction brief.
 - **UGC & Ad Studio** — builds a scene-by-scene product ad storyboard.
 - **Scriptwriter** — drafts a structured video script outline.
@@ -39,7 +39,7 @@ On Android, if GitHub's web uploader cannot select several files at once, use a 
 
 This is a working front-end prototype, not a connected AI media-generation service. It generates prompts, briefs, planning scores, scripts, and text exports in the browser. It does **not** yet render videos/images, fetch YouTube transcripts automatically, perform lip-sync/character replacement, remove captions from media, or enhance videos. Those capabilities require a provider API and usually a secure backend. Do not put private API keys in `app.js` or any browser-side file.
 
-Shorts scores are simple heuristic planning aids, not reliable predictions of views, virality, or engagement.
+Shorts scores are simple heuristic planning aids, not reliable predictions of views, virality, or engagement. Source timestamps are exact only when your pasted transcript contains them. Otherwise timestamps and caption timing are estimates that should be reviewed before publishing.
 
 ## Privacy
 
