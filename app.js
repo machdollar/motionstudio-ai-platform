@@ -806,27 +806,137 @@ the script substantial rather than returning only an outline.
     $("#repurposeStatus").textContent=`${drafts.length} draft${drafts.length===1?"":"s"} created · review and customize before posting.`;
     $("#repurposeExport").disabled=!drafts.length;
   }
-  if(repurposeForm){
-    repurposeForm.addEventListener("submit",event=>{
-      event.preventDefault();
-      const source=$("#repurposeSource").value.trim();
-      if(!source){toast("Paste a transcript or notes first.");return;}
-      repurposeDrafts=makeRepurposeDrafts(source,$("#repurposeTitle").value.trim(),$("#repurposePlatform").value,Number($("#repurposeCount").value),$("#repurposeTone").value,$("#repurposeLength").value);
-      renderRepurposeDrafts(repurposeDrafts);
-      toast("Short-form drafts created. Review before publishing.");
-    });
-    $("#repurposeOutput").addEventListener("click",event=>{
-      const button=event.target.closest("[data-copy-draft]");
-      if(button){const d=repurposeDrafts[Number(button.dataset.copyDraft)];if(d)copyText(`TITLE: ${d.title}\n\nSCRIPT:\n${d.script}\n\nCAPTION:\n${d.caption}\n${d.hashtags}`);}
-    });
-    $("#repurposeExport").addEventListener("click",()=>{
-      if(!repurposeDrafts.length)return;
-      const text=repurposeDrafts.map(d=>`DRAFT ${d.number}\nPLATFORM: ${d.platform}\nDURATION: ${d.length}\nTITLE: ${d.title}\n\nSCRIPT:\n${d.script}\n\nCAPTION:\n${d.caption}\n${d.hashtags}`).join("\n\n"+"=".repeat(48)+"\n\n");
-      downloadText("motionstudio-repurposed-content.txt",text);
-    });
-  }
 
-})();
+  if (repurposeForm) {
+    repurposeForm.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const source = $("#repurposeSource").value.trim();
+      if (!source) {
+        toast("Paste a transcript or notes first.");
+        return;
+      }
+
+      const title = $("#repurposeTitle").value.trim();
+      const platform = $("#repurposePlatform").value;
+      const count = Number($("#repurposeCount").value);
+      const tone = $("#repurposeTone").value;
+      const length = $("#repurposeLength").value;
+      const button = event.submitter ||
+        repurposeForm.querySelector('button[type="submit"]');
+
+      if (button) button.disabled = true;
+
+      $("#repurposeStatus").textContent =
+        "Gemini is creating your drafts. Please wait…";
+      $("#repurposeOutput").innerHTML =
+        '<p class="helper-text">Generating AI-powered content…</p>';
+      $("#repurposeExport").disabled = true;
+
+      const prompt = `Create exactly ${count} distinct content drafts
+for ${platform}.
+
+Source title: ${title || "Untitled source"}
+Requested length: ${length}
+Tone: ${tone}
+
+Return ONLY a valid JSON array, with no Markdown fences.
+Each object must contain:
+number, platform, length, title, hook, script, caption,
+hashtags, source.
+
+Requirements:
+- Make every draft different and useful.
+- Preserve the source's meaning.
+- Do not invent facts or statistics.
+- Match the requested platform, tone and length.
+- Include a strong opening and a useful conclusion.
+- Make the captions suitable for the platform.
+- Use valid JSON with double-quoted strings.
+
+Source content:
+${source}`;
+
+      try {
+        const raw = await generateWithAI(
+          "rewrite", prompt, platform, tone
+        );
+
+        const cleaned = raw.trim()
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/, "");
+
+        const first = cleaned.indexOf("[");
+        const last = cleaned.lastIndexOf("]");
+
+        if (first < 0 || last < first) {
+          throw new Error(
+            "The AI returned an unexpected format. Please try again."
+          );
+        }
+
+        const parsed = JSON.parse(
+          cleaned.slice(first, last + 1)
+        );
+
+        if (!Array.isArray(parsed) || !parsed.length) {
+          throw new Error("No drafts were returned. Please try again.");
+        }
+
+        repurposeDrafts = parsed.slice(0, count).map((d, i) => ({
+          number: i + 1,
+          platform: String(d.platform || platform),
+          length: String(d.length || length),
+          title: String(d.title || `Draft ${i + 1}`),
+          hook: String(d.hook || ""),
+          script: String(d.script || ""),
+          caption: String(d.caption || ""),
+          hashtags: String(d.hashtags || ""),
+          source: String(d.source || "")
+        }));
+
+        renderRepurposeDrafts(repurposeDrafts);
+        toast("AI-powered drafts created successfully.");
+
+      } catch (error) {
+        $("#repurposeOutput").innerHTML = "";
+        $("#repurposeStatus").textContent =
+          error.message || "Could not generate drafts.";
+        toast("AI repurposing failed.");
+
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+
+    $("#repurposeOutput").addEventListener("click", event => {
+      const button = event.target.closest("[data-copy-draft]");
+      if (!button) return;
+
+      const d = repurposeDrafts[Number(button.dataset.copyDraft)];
+      if (d) {
+        copyText(
+          `TITLE: ${d.title}\n\nSCRIPT:\n${d.script}` +
+          `\n\nCAPTION:\n${d.caption}\n${d.hashtags}`
+        );
+      }
+    });
+
+    $("#repurposeExport").addEventListener("click", () => {
+      if (!repurposeDrafts.length) return;
+
+      const text = repurposeDrafts.map(d =>
+        `DRAFT ${d.number}\n` +
+        `PLATFORM: ${d.platform}\n` +
+        `LENGTH: ${d.length}\n` +
+        `TITLE: ${d.title}\n\n` +
+        `SCRIPT:\n${d.script}\n\n` +
+        `CAPTION:\n${d.caption}\n${d.hashtags}`
+      ).join("\n\n" + "=".repeat(48) + "\n\n");
+
+      downloadText("motionstudio-repurposed-content.txt", text);
+    });                                 }
+  
 // MotionStudio AI backend connection test
 (async function testMotionStudioBackend() {
   const API_BASE_URL = "https://motionstudio-ai-backend.onrender.com";
