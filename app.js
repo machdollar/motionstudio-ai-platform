@@ -7,6 +7,31 @@
   let toastTimer;
   let currentScript = "";
   let currentImageUrl = "";
+  
+const API_BASE_URL = "https://motionstudio-ai-backend.onrender.com";
+
+async function generateWithAI(task, prompt, platform = "YouTube", tone = "engaging") {
+  const response = await fetch(`${API_BASE_URL}/api/ai/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ task, prompt, platform, tone })
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "AI generation failed. Please try again.");
+  }
+
+  if (!data.result) {
+    throw new Error("The AI returned an empty result. Please try again.");
+  }
+
+  return data.result;
+}
+  
 
   function toast(message) {
     const node = $("#toast");
