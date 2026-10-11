@@ -187,57 +187,290 @@ async function generateWithAI(task, prompt, platform = "YouTube", tone = "engagi
     const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000), milli = ms % 1000;
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")},${String(milli).padStart(3,"0")}`;
   }
-  $("#shortsForm").addEventListener("submit", event => {
-    event.preventDefault();
-    const sourceTitle = $("#shortsTitle").value.trim() || "Untitled source video";
-    const transcript = $("#shortsTranscript").value.trim();
-    if (!transcript) return;
-    const count = Number($("#shortCount").value);
-    const platform = $("#shortPlatform").value;
-    const tone = $("#shortTone").value;
-    const audience = $("#shortAudience").value.trim();
-    const cta = $("#shortCTA").value.trim();
-    const sourceUrl = safeUrl($("#youtubeUrl").value);
+  
+$("#shortsForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const sourceTitle = $("#shortsTitle").value.trim() || "Untitled source video";
+  const transcript = $("#shortsTranscript").value.trim();
+  if (!transcript) return;
+
+  const count = Number($("#shortCount").value);
+  const platform = $("#shortPlatform").value;
+  const tone = $("#shortTone").value;
+  const audience = $("#shortAudience").value.trim();
+  const cta = $("#shortCTA").value.trim();
+  const sourceUrl = safeUrl($("#youtubeUrl").value);
+  const button = event.submitter ||
+    $("#shortsForm").querySelector('button[type="submit"]');
+
+  if (button) button.disabled = true;
+  $("#shortsOutput").innerHTML =
+    '<p class="helper-text">Gemini is analyzing your transcript. Please wait…</p>';
+
+  try {
+    const prompt = `Analyze this transcript and create exactly ${count}
+distinct short-form clip ideas for ${platform}.
+
+Source title: ${sourceTitle}
+Tone: ${tone}
+Audience: ${audience || "General audience"}
+Call to action: ${cta || "Use a relevant call to action."}
+
+Return ONLY a valid JSON array. Each item must contain:
+"title", "excerpt", "hook", "description", "hashtags", "reason".
+
+Rules:
+- Select distinct, self-contained moments with a clear point.
+- Copy each excerpt exactly from the source transcript.
+- Never invent quotes, facts or statistics.
+- Hooks are suggestions, not words from the original recording.
+- Make titles and descriptions appropriate for the platform.
+- Do not guarantee views or virality.
+- Return valid JSON without Markdown fences.
+
+TRANSCRIPT:
+${transcript}`;
+
+    const raw = await generateWithAI(
+      "rewrite", prompt, platform, tone
+    );
+
+    const cleaned = raw.trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "");
+
+    const first = cleaned.indexOf("[");
+    const last = cleaned.lastIndexOf("]");
+
+    if (first < 0 || last < first) {
+      throw new Error("Unexpected AI response format. Please try again.");
+    }
+
+    const items = JSON.parse(cleaned.slice(first, last + 1));
+
+    if (!Array.isArray(items) || !items.length) {
+      throw new Error("No clip ideas were returned.");
+    }
+
     const segments = transcriptSegments(transcript);
     let elapsed = 0;
-    let clips = segments.map((segment, i) => {
+
+    const sourceClips = segments.map((segment, i) => {
       const words = segment.text.split(/\s+/).filter(Boolean).length;
-      const startSeconds = segment.startSeconds === null ? elapsed : segment.startSeconds;
+      const startSeconds =
+        segment.startSeconds === null ? elapsed : segment.startSeconds;
+
       elapsed = startSeconds + Math.max(2, Math.round(words / 2.5));
-      return { text:segment.text, index:i, startSeconds, timecodeSource:segment.timecodeSource, score:estimateClipScore(segment.text) };
+
+      return {
+        text: segment.text,
+        index: i + 1,
+        startSeconds,
+        timecodeSource: segment.timecodeSource
+      };
     }).filter(clip => clip.text.trim().length > 15);
-    clips.sort((a,b) => b.score.total - a.score.total);
-    clips = clips.slice(0, count).map((clip, index) => buildClipPack(clip, index, { sourceTitle, platform, tone, audience, cta }));
-    currentShortsExport = clips;
-    currentShortsMeta = { sourceTitle, platform, tone, audience, cta, sourceUrl };
-    const best = clips.reduce((sum, clip) => sum + clip.score.total, 0) / Math.max(clips.length,1);
-    const cards = clips.map((clip, i) => {
-      const timecodeNote = clip.timecodeSource ? "Source timestamp" : "Estimated timestamp";
-      return `<article class="clip-card shorts-pack-card"><div class="clip-top"><span class="clip-number">CLIP ${String(i+1).padStart(2,"0")} · ${escapeHTML(formatTimecode(clip.startSeconds))} · ${clip.duration}s</span><span class="clip-score">Score ${clip.score.total}/100</span></div><h3>${escapeHTML(clip.title)}</h3><div class="shorts-score-bars"><span>Hook <b>${clip.score.hook}</b></span><span>Shareability <b>${clip.score.share}</b></span><span>Clarity <b>${clip.score.clarity}</b></span></div><p><strong>Source excerpt</strong><br>${escapeHTML(clip.text)}</p><p><strong>Opening hook idea</strong><br>${escapeHTML(clip.text.split(/[.!?]/)[0].trim() || clip.text)}</p><p><strong>Post description</strong><br>${escapeHTML(clip.description)}</p><p class="clip-meta">${timecodeNote} · ${escapeHTML(platform)} · ${escapeHTML(tone)}</p><div class="result-actions"><button class="button button-secondary" data-copy-clip="${i}">Copy complete clip pack</button></div></article>`;
-    }).join("");
-    const note = `<p>Source: ${escapeHTML(sourceTitle)}${sourceUrl ? ` · <a href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source video</a>` : ""}</p><div class="score-row"><div class="score-box"><strong>${Math.round(best)}</strong><span>Average planning score</span></div><div class="score-box"><strong>${clips.length}</strong><span>Ranked clip opportunities</span></div><div class="score-box"><strong>${clips.filter(clip => clip.timecodeSource).length}</strong><span>Exact source timestamps</span></div></div><p>Clips are ranked using text-based heuristics. Timestamps are exact only when supplied in your transcript; otherwise they are rough estimates. These scores do not predict or guarantee views.</p>`;
-    const exportActions = `<div class="result-actions shorts-export-actions"><button class="button button-secondary" id="downloadAllClips">Download production pack (.txt)</button><button class="button button-secondary" id="downloadClipsCsv">Export clip plan (.csv)</button><button class="button button-secondary" id="downloadClipSrt">Export caption draft (.srt)</button></div>`;
-    $("#shortsOutput").innerHTML = `<div class="result-content">${note}</div>${cards || '<p class="helper-text">Add a longer transcript with complete sentences to find clip opportunities.</p>'}${exportActions}`;
-    $$('[data-copy-clip]', $("#shortsOutput")).forEach(button => button.addEventListener("click", () => {
-      const clip = currentShortsExport[Number(button.dataset.copyClip)];
-      if (!clip) return;
-      copyText(`CLIP ${clip.index}\nSource start: ${formatTimecode(clip.startSeconds)}\nTitle: ${clip.title}\nDuration estimate: ${clip.duration}s\n\nExcerpt:\n${clip.text}\n\nDescription:\n${clip.description}\n\nScores (heuristic): ${clip.score.total}/100 · Hook ${clip.score.hook} · Shareability ${clip.score.share} · Clarity ${clip.score.clarity}`);
-    }));
+
+    currentShortsExport = items.slice(0, count).map((item, i) => {
+      const excerpt = String(item.excerpt || "").trim();
+
+      const source = sourceClips.find(clip =>
+        clip.text.includes(excerpt) || excerpt.includes(clip.text)
+      ) || sourceClips[i] || {
+        text: excerpt,
+        index: i + 1,
+        startSeconds: 0,
+        timecodeSource: false
+      };
+
+      const text = excerpt || source.text;
+      const score = estimateClipScore(text);
+      const duration = Math.max(
+        15,
+        Math.min(55, Math.round(text.split(/\s+/).length / 2.5))
+      );
+
+      const hashtags = String(item.hashtags || "#Shorts #CreatorTips");
+      const description = [
+        String(item.description || text),
+        cta,
+        hashtags
+      ].filter(Boolean).join("\n\n");
+
+      return {
+        text,
+        index: i + 1,
+        startSeconds: source.startSeconds,
+        timecodeSource: source.timecodeSource,
+        duration,
+        title: String(item.title || makeTitle(text, i + 1, tone)),
+        hook: String(item.hook || text),
+        description,
+        hashtags,
+        reason: String(item.reason || ""),
+        score,
+        platform,
+        tone,
+        sourceTitle
+      };
+    });
+
+    currentShortsMeta = {
+      sourceTitle, platform, tone, audience, cta, sourceUrl
+    };
+
+    const clips = currentShortsExport;
+    const average = Math.round(
+      clips.reduce((sum, clip) => sum + clip.score.total, 0) /
+      Math.max(clips.length, 1)
+    );
+
+    const cards = clips.map((clip, i) => `
+      <article class="clip-card shorts-pack-card">
+        <div class="clip-top">
+          <span class="clip-number">
+            CLIP ${String(i + 1).padStart(2, "0")} ·
+            ${escapeHTML(formatTimecode(clip.startSeconds))} ·
+            ${clip.duration}s
+          </span>
+          <span class="clip-score">
+            Planning score ${clip.score.total}/100
+          </span>
+        </div>
+        <h3>${escapeHTML(clip.title)}</h3>
+        <p><strong>Source excerpt</strong><br>${escapeHTML(clip.text)}</p>
+        <p><strong>AI hook suggestion</strong><br>${escapeHTML(clip.hook)}</p>
+        <p><strong>Post description</strong><br>${escapeHTML(clip.description)}</p>
+        <p><strong>Why this clip</strong><br>${escapeHTML(clip.reason)}</p>
+        <p class="clip-meta">
+          ${clip.timecodeSource ? "Source timestamp" : "Estimated timestamp"}
+          · ${escapeHTML(platform)} · ${escapeHTML(tone)}
+        </p>
+        <div class="result-actions">
+          <button class="button button-secondary"
+            data-copy-clip="${i}" type="button">
+            Copy complete clip pack
+          </button>
+        </div>
+      </article>
+    `).join("");
+
+    const sourceLink = sourceUrl
+      ? ` · <a href="${escapeHTML(sourceUrl)}"
+          target="_blank" rel="noopener noreferrer">Open source video</a>`
+      : "";
+
+    const note = `
+      <p>Source: ${escapeHTML(sourceTitle)}${sourceLink}</p>
+      <div class="score-row">
+        <div class="score-box">
+          <strong>${average}</strong><span>Average planning score</span>
+        </div>
+        <div class="score-box">
+          <strong>${clips.length}</strong><span>AI-selected clip ideas</span>
+        </div>
+        <div class="score-box">
+          <strong>${clips.filter(c => c.timecodeSource).length}</strong>
+          <span>Clips with supplied timestamps</span>
+        </div>
+      </div>
+      <p>Scores are text-based planning estimates, not predictions.
+      Timestamps are estimates unless supplied in your transcript.</p>
+    `;
+
+    $("#shortsOutput").innerHTML = `
+      <div class="result-content">${note}</div>
+      ${cards}
+      <div class="result-actions shorts-export-actions">
+        <button class="button button-secondary" id="downloadAllClips">
+          Download production pack (.txt)
+        </button>
+        <button class="button button-secondary" id="downloadClipsCsv">
+          Export clip plan (.csv)
+        </button>
+        <button class="button button-secondary" id="downloadClipSrt">
+          Export caption draft (.srt)
+        </button>
+      </div>
+    `;
+
+    $$("[data-copy-clip]", $("#shortsOutput")).forEach(copyButton => {
+      copyButton.addEventListener("click", () => {
+        const clip = currentShortsExport[
+          Number(copyButton.dataset.copyClip)
+        ];
+        if (!clip) return;
+
+        copyText(
+          `CLIP ${clip.index}\n` +
+          `Start: ${formatTimecode(clip.startSeconds)}\n` +
+          `Title: ${clip.title}\n\n` +
+          `Excerpt:\n${clip.text}\n\n` +
+          `Hook:\n${clip.hook}\n\n` +
+          `Description:\n${clip.description}\n\n` +
+          `Why this clip: ${clip.reason}`
+        );
+      });
+    });
+
     $("#downloadAllClips").addEventListener("click", () => {
-      const text = `${sourceTitle}\nPlatform: ${platform}\nStyle: ${tone}\nAudience: ${audience || "Not specified"}\n\n${clips.map(clip => `CLIP ${clip.index}\nSource start: ${formatTimecode(clip.startSeconds)}\nDuration estimate: ${clip.duration}s\nTitle: ${clip.title}\nExcerpt: ${clip.text}\nDescription:\n${clip.description}\nScore: ${clip.score.total}/100 (heuristic)\nHook: ${clip.score.hook} · Shareability: ${clip.score.share} · Clarity: ${clip.score.clarity}\n`).join("\n")}`;
+      const text = clips.map(clip =>
+        `CLIP ${clip.index}\n` +
+        `Start: ${formatTimecode(clip.startSeconds)}\n` +
+        `Title: ${clip.title}\n` +
+        `Excerpt: ${clip.text}\n` +
+        `Hook: ${clip.hook}\n` +
+        `Description: ${clip.description}\n` +
+        `Reason: ${clip.reason}\n`
+      ).join("\n------------------------------\n\n");
+
       downloadText("motionstudio-shorts-production-pack.txt", text);
     });
-    $("#downloadClipsCsv").addEventListener("click", () => {
-      const rows = [["Clip","Start time","Estimated duration (seconds)","Title","Excerpt","Description","Planning score","Hook score","Shareability score","Clarity score"], ...clips.map(clip => [clip.index, formatTimecode(clip.startSeconds), clip.duration, clip.title, clip.text, clip.description, clip.score.total, clip.score.hook, clip.score.share, clip.score.clarity])];
-      downloadText("motionstudio-shorts-clip-plan.csv", rows.map(row => row.map(csvEscape).join(",")).join("\r\n"), "text/csv;charset=utf-8");
-    });
-    $("#downloadClipSrt").addEventListener("click", () => {
-      const srt = clips.map((clip, i) => `${i+1}\n${srtTimestamp(i * clip.duration)} --> ${srtTimestamp(i * clip.duration + clip.duration)}\n${clip.text}\n`).join("\n");
-      downloadText("motionstudio-caption-draft.srt", srt, "application/x-subrip;charset=utf-8");
-    });
-    toast("Shorts production pack created.");
-  });
 
+    $("#downloadClipsCsv").addEventListener("click", () => {
+      const rows = [
+        ["Clip", "Start time", "Duration", "Title", "Excerpt",
+          "Hook", "Description", "Planning score"],
+        ...clips.map(c => [
+          c.index, formatTimecode(c.startSeconds), c.duration,
+          c.title, c.text, c.hook, c.description, c.score.total
+        ])
+      ];
+
+      downloadText(
+        "motionstudio-shorts-clip-plan.csv",
+        rows.map(row => row.map(csvEscape).join(",")).join("\r\n"),
+        "text/csv;charset=utf-8"
+      );
+    });
+
+    $("#downloadClipSrt").addEventListener("click", () => {
+      const srt = clips.map((clip, i) =>
+        `${i + 1}\n` +
+        `${srtTimestamp(i * clip.duration)} --> ` +
+        `${srtTimestamp(i * clip.duration + clip.duration)}\n` +
+        `${clip.text}\n`
+      ).join("\n");
+
+      downloadText(
+        "motionstudio-caption-draft.srt",
+        srt,
+        "application/x-subrip;charset=utf-8"
+      );
+    });
+
+    toast("AI-powered Shorts production pack created.");
+
+  } catch (error) {
+    $("#shortsOutput").textContent =
+      error.message || "Could not generate clip ideas. Please try again.";
+    toast("Shorts Planner AI failed.");
+
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+    
   $("#imageFile").addEventListener("change", event => {
     const file = event.target.files?.[0];
     if (!file) return;
