@@ -73,3 +73,11 @@ This remains a static front-end application. Project records are local to the cu
 - Added a Brand Kit page for brand name, tagline, website/logo link, colors, font, target audience, voice, key message, and content guidelines.
 - Added live color/identity preview, copyable brand brief, and JSON export.
 - Brand Kit data is stored in this browser only; it does not sync across devices or automatically connect to external AI services.
+
+
+## Version 7 — Content Repurposer
+- Added a Content Repurposer workspace to turn pasted transcripts, notes, or summaries into 3, 5, or 8 short-form content drafts.
+- Choose a platform, tone, and target duration.
+- Each draft includes a suggested title, opening hook, script outline, caption, and hashtags.
+- Copy individual drafts or export the full set as a text file.
+- Drafting uses local text templates and sentence selection. It does not download YouTube videos, assess real virality, or call an external AI API.

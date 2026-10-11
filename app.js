@@ -3,7 +3,7 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const STORAGE_KEYS = { prompts: "motionstudio.prompts.v1", settings: "motionstudio.settings.v1", calendar: "motionstudio.calendar.v1", projects: "motionstudio.projects.v1" };
-  const viewNames = { overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", projects:"Project Dashboard", calendar:"Content Calendar", assets:"Media Asset Library", brand:"Brand Kit", library:"Prompt Library", settings:"Studio settings" };
+  const viewNames = { repurpose:"Content Repurposer", overview:"Overview", video:"AI Video Studio", shorts:"Viral Shorts Planner", image:"Image & Motion", ugc:"UGC & Ad Studio", script:"Scriptwriter", captions:"Voice & Captions", projects:"Project Dashboard", calendar:"Content Calendar", assets:"Media Asset Library", brand:"Brand Kit", library:"Prompt Library", settings:"Studio settings" };
   let toastTimer;
   let currentScript = "";
   let currentImageUrl = "";
@@ -665,6 +665,75 @@
       const data = JSON.parse(localStorage.getItem(BRAND_KEY) || "{}");
       const brief = `BRAND BRIEF\nName: ${data.name || ""}\nTagline: ${data.tagline || ""}\nWebsite/logo: ${data.logo || ""}\nPrimary color: ${data.primary || ""}\nAccent color: ${data.accent || ""}\nFont: ${data.font || ""}\nAudience: ${data.audience || ""}\nBrand voice: ${data.voice || ""}\nKey message: ${data.message || ""}\nGuidelines: ${data.guidelines || ""}`;
       copyText(brief);
+    });
+  }
+
+
+  // Version 7: browser-based content repurposing drafts.
+  const repurposeForm = $("#repurposeForm");
+  let repurposeDrafts = [];
+  function sentenceChunks(text) {
+    return text.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 25);
+  }
+  function makeHook(sentence, tone, index) {
+    const clean = sentence.replace(/^[\s\-•\d.)]+/, "").trim();
+    const short = clean.length > 135 ? clean.slice(0, 132).replace(/\s+\S*$/, "") + "…" : clean;
+    const hooks = {
+      Curious: [`Most people overlook this: ${short}`, `What if ${short.charAt(0).toLowerCase()+short.slice(1)}`, `Here's the surprising part: ${short}`],
+      Educational: [`Here's a lesson worth remembering: ${short}`, `Try this simple idea: ${short}`, `One useful takeaway: ${short}`],
+      Energetic: [`Stop scrolling—this matters: ${short}`, `Save this tip: ${short}`, `Let's make this simple: ${short}`],
+      Storytelling: [`It started with one idea: ${short}`, `Here's the moment things clicked: ${short}`, `The lesson I wish I'd known: ${short}`]
+    };
+    return hooks[tone][index % hooks[tone].length];
+  }
+  function makeRepurposeDrafts(source, title, platform, count, tone, length) {
+    const sentences = sentenceChunks(source);
+    const chunks = sentences.length ? sentences : source.split(/\n+/).map(x=>x.trim()).filter(x=>x.length>20);
+    const fallback = source.replace(/\s+/g," ").trim();
+    const picks = chunks.length ? chunks : [fallback];
+    const drafts = [];
+    for(let i=0;i<count;i++){
+      const base = picks[i % picks.length];
+      const second = picks[(i+1) % picks.length];
+      const hook = makeHook(base, tone, i);
+      const body = base.length > 260 ? base.slice(0,257).replace(/\s+\S*$/,"")+"…" : base;
+      const wrap = second && second !== base ? `\n\nKey point: ${second.length>220?second.slice(0,217)+"…":second}` : "";
+      const call = ["Follow for more practical takeaways.","Save this for later.","Share this with someone who needs it.","What would you add? Tell me below."][i%4];
+      const clipTitle = (title ? title + ": " : "") + base.split(/[.!?]/)[0].slice(0,65).trim();
+      drafts.push({number:i+1,platform,length,title:clipTitle || `Short-form idea ${i+1}`,hook,script:`${hook}\n\n${body}${wrap}\n\n${call}`,caption:`${hook}\n\n${call}`,hashtags:"#CreatorTips #ContentCreation #Shorts",source:base});
+    }
+    return drafts;
+  }
+  function renderRepurposeDrafts(drafts) {
+    const output=$("#repurposeOutput");
+    output.innerHTML=drafts.map(d=>`<article class="repurpose-card">
+      <div class="repurpose-card-top"><h3>Draft ${d.number} · ${escapeHTML(d.platform)}</h3><span class="nav-tag">${escapeHTML(d.length)}</span></div>
+      <div class="draft-label">Suggested title</div><p class="draft-title">${escapeHTML(d.title)}</p>
+      <div class="draft-label">Opening hook</div><p>${escapeHTML(d.hook)}</p>
+      <div class="draft-label">Script outline</div><p>${escapeHTML(d.script)}</p>
+      <div class="draft-label">Caption & hashtags</div><p>${escapeHTML(d.caption)}\n${escapeHTML(d.hashtags)}</p>
+      <div class="repurpose-actions"><button class="button button-secondary" type="button" data-copy-draft="${d.number-1}">Copy draft</button></div>
+    </article>`).join("");
+    $("#repurposeStatus").textContent=`${drafts.length} draft${drafts.length===1?"":"s"} created · review and customize before posting.`;
+    $("#repurposeExport").disabled=!drafts.length;
+  }
+  if(repurposeForm){
+    repurposeForm.addEventListener("submit",event=>{
+      event.preventDefault();
+      const source=$("#repurposeSource").value.trim();
+      if(!source){toast("Paste a transcript or notes first.");return;}
+      repurposeDrafts=makeRepurposeDrafts(source,$("#repurposeTitle").value.trim(),$("#repurposePlatform").value,Number($("#repurposeCount").value),$("#repurposeTone").value,$("#repurposeLength").value);
+      renderRepurposeDrafts(repurposeDrafts);
+      toast("Short-form drafts created. Review before publishing.");
+    });
+    $("#repurposeOutput").addEventListener("click",event=>{
+      const button=event.target.closest("[data-copy-draft]");
+      if(button){const d=repurposeDrafts[Number(button.dataset.copyDraft)];if(d)copyText(`TITLE: ${d.title}\n\nSCRIPT:\n${d.script}\n\nCAPTION:\n${d.caption}\n${d.hashtags}`);}
+    });
+    $("#repurposeExport").addEventListener("click",()=>{
+      if(!repurposeDrafts.length)return;
+      const text=repurposeDrafts.map(d=>`DRAFT ${d.number}\nPLATFORM: ${d.platform}\nDURATION: ${d.length}\nTITLE: ${d.title}\n\nSCRIPT:\n${d.script}\n\nCAPTION:\n${d.caption}\n${d.hashtags}`).join("\n\n"+"=".repeat(48)+"\n\n");
+      downloadText("motionstudio-repurposed-content.txt",text);
     });
   }
 

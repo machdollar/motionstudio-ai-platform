@@ -54,3 +54,25 @@
 .brand-preview-copy span { color:var(--muted); font-size:.85rem; }
 .brand-preview-panel { margin-top:18px; }
 @media(max-width:650px) { .brand-preview-copy { padding:16px; } .brand-swatch { width:25px; flex-basis:25px; } }
+
+/* Version 7 — Content Repurposer */
+.repurpose-layout{display:grid;grid-template-columns:minmax(280px,.88fr) minmax(320px,1.12fr);gap:20px;align-items:start}
+.repurpose-form,.repurpose-results{padding:22px;display:flex;flex-direction:column;gap:13px}
+.repurpose-form label{font-size:12px;font-weight:700;color:var(--text-soft);margin-bottom:-7px}
+.repurpose-form .field{width:100%;min-width:0}
+.repurpose-form textarea{resize:vertical;line-height:1.55}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row>div{display:flex;flex-direction:column;gap:12px;min-width:0}
+.muted-inline{font-weight:400;color:var(--muted)}
+.form-note{font-size:11px;line-height:1.5;color:var(--muted);margin:0}
+.repurpose-output{display:grid;gap:12px}
+.repurpose-card{border:1px solid var(--border);background:var(--surface-2);border-radius:13px;padding:15px}
+.repurpose-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.repurpose-card h3{font-size:14px;margin:0}
+.repurpose-card p{font-size:12px;line-height:1.6;color:var(--text-soft);white-space:pre-wrap;margin:7px 0}
+.repurpose-card .draft-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;margin-top:12px}
+.repurpose-card .draft-title{font-weight:700;color:var(--text)}
+.repurpose-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.repurpose-actions .button{font-size:11px;padding:8px 10px}
+@media(max-width:900px){.repurpose-layout{grid-template-columns:1fr}}
+@media(max-width:520px){.repurpose-form,.repurpose-results{padding:15px}.form-row{grid-template-columns:1fr}}

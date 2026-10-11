@@ -29,6 +29,7 @@
         <button class="nav-item" data-view="calendar"><span class="nav-icon">▦</span> Content Calendar</button>
         <button class="nav-item" data-view="assets"><span class="nav-icon">▧</span> Media Asset Library</button>
         <button class="nav-item" data-view="brand"><span class="nav-icon">✦</span> Brand Kit</button>
+        <button class="nav-item" data-view="repurpose"><span class="nav-icon">↗</span> Content Repurposer <span class="nav-tag">NEW</span></button>
         <button class="nav-item" data-view="library"><span class="nav-icon">◇</span> Prompt Library</button>
       </nav>
       <div class="sidebar-bottom">
@@ -241,6 +242,22 @@
               <div class="empty-output compact-empty" id="calendarEmpty"><div class="empty-icon">▦</div><h3>Your publishing plan starts here</h3><p>Add a post using the form. Your schedule will be saved on this device.</p></div>
               <div class="calendar-footer-actions"><button class="button button-secondary" id="exportCalendar" type="button">Export CSV ↓</button><button class="button button-secondary" id="exportCalendarJson" type="button">Backup JSON ↓</button></div>
             </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-repurpose">
+          <div class="page-heading"><div><div class="eyebrow">LONG-FORM TO SHORT-FORM WORKFLOW / 13</div><h1>Content Repurposer</h1><p>Turn a transcript or video notes into short-form content drafts, hooks, titles, and captions.</p></div><span class="heading-icon purple">↗</span></div>
+          <div class="repurpose-layout">
+            <form class="panel repurpose-form" id="repurposeForm">
+              <div class="panel-heading"><div><h2>Source content</h2><p>Paste a transcript, notes, or a video summary.</p></div></div>
+              <label for="repurposeTitle">Original video title</label><input id="repurposeTitle" class="field" maxlength="180" placeholder="e.g. 7 habits that changed my life">
+              <label for="repurposeSource">Transcript or notes <span class="muted-inline">Required</span></label><textarea id="repurposeSource" class="field" rows="9" required placeholder="Paste the transcript or your main points here…"></textarea>
+              <div class="form-row"><div><label for="repurposePlatform">Target platform</label><select id="repurposePlatform" class="field"><option value="YouTube Shorts">YouTube Shorts</option><option value="TikTok">TikTok</option><option value="Instagram Reels">Instagram Reels</option><option value="Facebook Reels">Facebook Reels</option></select></div><div><label for="repurposeCount">Drafts to create</label><select id="repurposeCount" class="field"><option value="3">3 short ideas</option><option value="5">5 short ideas</option><option value="8">8 short ideas</option></select></div></div>
+              <div class="form-row"><div><label for="repurposeTone">Style</label><select id="repurposeTone" class="field"><option value="Curious">Curious / intriguing</option><option value="Educational">Educational</option><option value="Energetic">Energetic</option><option value="Storytelling">Storytelling</option></select></div><div><label for="repurposeLength">Target duration</label><select id="repurposeLength" class="field"><option value="20–30 seconds">20–30 seconds</option><option value="30–45 seconds">30–45 seconds</option><option value="45–60 seconds">45–60 seconds</option></select></div></div>
+              <button class="button button-primary" type="submit">Create short-form drafts <span>↗</span></button>
+              <p class="form-note">Runs in your browser using text-based drafting templates. It does not fetch YouTube videos or connect to an AI service.</p>
+            </form>
+            <div class="panel repurpose-results"><div class="panel-heading"><div><h2>Repurposed drafts</h2><p id="repurposeStatus">Your drafts will appear here.</p></div><button class="button button-secondary" id="repurposeExport" type="button" disabled>Export TXT ↓</button></div><div id="repurposeOutput" class="repurpose-output"><div class="empty-state"><span>✦</span><h3>Ready when you are</h3><p>Add source content and create your first set of short-form drafts.</p></div></div></div>
           </div>
         </section>
 
