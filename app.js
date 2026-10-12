@@ -1183,3 +1183,4 @@ ${source}`;
     console.error("MotionStudio AI backend connection failed:", error);
   }
 })();
+  })();
